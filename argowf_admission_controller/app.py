@@ -16,7 +16,7 @@ app = FastAPI()
 @app.post("/validate")
 def admission_controller(request=Body(...)):
 
-    # get user
+    # get user - Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".  If so, then we can trust the uid from there.  
     # workflow_submitter = request['request']['userInfo']['username']
     # keycloak_uid = request['request']['object']['metadata']['labels']['workflows.argoproj.io/creator']
     # kcadm = KeycloakAdmin(server_url="http://nebari.adamdlewis.com/auth/",
