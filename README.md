@@ -9,3 +9,4 @@ Steps to use
 - You need to kubectl apply the files in the manifests directory.
 
 The argowf_admission_controller folder contains the source code for the Fastapi admission controller.
+argowf_admission_controller/example_admission_requests contains some example admission requests that can be used to test the admission controller.
