@@ -8,5 +8,7 @@ Steps to use
 - You need to build the argowf_admission_controller/Dockerfile and push it to a registry that your kubernetes cluster can access.
 - You need to kubectl apply the files in the manifests directory.
 
-The argowf_admission_controller folder contains the source code for the Fastapi admission controller.
-argowf_admission_controller/example_admission_requests contains some example admission requests that can be used to test the admission controller.
+Other Notes
+===========
+- The argowf_admission_controller folder contains the source code for the Fastapi admission controller.
+- argowf_admission_controller/example_admission_requests contains some example admission requests that can be used to test the admission controller.
