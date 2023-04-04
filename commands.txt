@@ -1,7 +1,1 @@
-docker build . -t balast/admsn:latest && docker push balast/admsn:latest
-
-
-kubectl create secret generic grumpy -n dev \
-  --from-file=key.pem=certs/grumpy-key.pem \
-  --from-file=cert.pem=certs/grumpy-crt.pem
-
+docker build . -t <repo:tag> && docker push <repo:tag>
