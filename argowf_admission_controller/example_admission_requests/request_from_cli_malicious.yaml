@@ -1,0 +1,112 @@
+{
+    "kind": "AdmissionReview",
+    "apiVersion": "admission.k8s.io/v1",
+    "request": {
+        "uid": "326e80e8-39f0-44d4-8e90-190417e1a9d7",
+        "kind": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "kind": "Workflow"
+        },
+        "resource": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "resource": "workflows"
+        },
+        "requestKind": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "kind": "Workflow"
+        },
+        "requestResource": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "resource": "workflows"
+        },
+        "name": "hello-world",
+        "namespace": "dev",
+        "operation": "CREATE",
+        "userInfo": {
+            "username": "alewis@quansight.com",
+            "groups": [
+                "system:authenticated"
+            ],
+            "extra": {
+                "iam.gke.io/user-assertion": [
+                    "AAy4coZDiWXRbbrWkhhycxDAhmJ0aXtLdScXCJAzFVflEqDR877ApRyrOGVph5XXE72ejLNi1aQwVXq7V+zpdEeRRdhPCjBG8BHMBTDl8kLjZhkDS54thU0SttwtIWnI5hJafjJKpw+rbCeTnimnRoGu7Uiv9XRVHFuKKrMJV2kv50OmtnnAQ45Dgw7nDmllnJSVd1ElJB/ewjd/gMResTCyV6sR3ch6ZOniJ3kVXxaoTO5NdvG/qn4ngzV3T+U73dxwySWwMbbTkLeASZuAujMEEjtrfYckHQxeDoPo+PB+RRwxphuKllW+F+VW/JwyLc2fWx6WkdQPNaoGZgBIcoNRJS3/ZTU+9w/8zNgNZ208vL5ABrB7SQAysxBY2e8paW7NVJHS/50F3AITEIZkdVqB7hW+BL5XDHf5UPy6rRvcFbXLVGykMNx1aCZFWGHIjgO4GkXW+SD+RMx0uGYHRhq2QMJ9l6DnwgZOqB1yAR4Vk6NWvBKmQD42kddwymTuSmfFk/VCwjaj3wOQxMP/rEKylwD5C+1P1Vlajk2jHnoOSfrT4DubRS50+1Cs0c/qjaZ/QXlMN1RSSZLy5gpm0iqLCfsbh48g3eyEgHlIettvTehm4LEKj9DjQJl8lsFNuU/hDikwFY/5ncU1+zFlXbl/5gbXRigh8DfhgfKCSevrsWUIkji4y49E9NhHdxzUPDunIn8jVyH1iNZ85/y2F3J2m4ZHuBMkqn1ypC2g7F3nsSbZkUYiH/mpfonaVcgH2LmSpsLrzjGkxstFEQ6KfEF0Mjr41lnWLSNhjMDcWJuP2SHlF7mDVgy0hkQKZeuYaJ3s+py2YlmFgjKS4ieP2CHA1kU+ienc1FQ7DvNLxj3094ktd92L+qiDq/BvKI9eLsa47asA9iNU7B7W+l4D3eDNshpvQh8qU0dPDvgcWJnwxQTql/a+tLufNKVFyHg0G4SdRx1Yv6UnpUi6308M0fMI9t30F0qH5r/TjDOaUFn+ae/4iJghRb6PO33PGcQc4jsZWCgxf1BiLLl9bZ2j6mhnW8YPTYUYsA+OKaCsS9SGPhyJvJzvQNw61r0PVvom4yce9JZVbPZhM39Dh+4RIZ9ue2v2s0cvwiwDbTQ2"
+                ],
+                "user-assertion.cloud.google.com": [
+                    "AAy4coaWCrboKezkImS88Luaz21dODBhk1Jghyqo/F5+BCKS6GnJKspa7907t/VxNQj8U+lElBvvDtzD1QdD7IQ789Qcuw2rzszi8LVvFpqCoW5hsgSHKB+eFU5xbztV1cD8oubSEVxn+vVqxextry8f1ZPJtQwzA+wOwARg236FaAU3m6geFNz8MOYP7V9VvtoSSwBimhqi7ZtdTMNblcySCybxrYFcRVM="
+                ]
+            }
+        },
+        "object": {
+            "apiVersion": "argoproj.io/v1alpha1",
+            "kind": "Workflow",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"Workflow\",\"metadata\":{\"annotations\":{\"workflows.argoproj.io/description\":\"This is a simple hello world example.\\nYou can also run it in Python: https://couler-proj.github.io/couler/examples/#hello-world\\n\"},\"labels\":{\"workflows.argoproj.io/archive-strategy\":\"false\",\"workflows.argoproj.io/creator\":\"583b4351-f183-4446-b389-f8036b8fa140\"},\"name\":\"hello-world\",\"namespace\":\"dev\"},\"spec\":{\"entrypoint\":\"whalesay\",\"templates\":[{\"container\":{\"args\":[\"hello world\"],\"command\":[\"cowsay\"],\"image\":\"docker/whalesay:latest\"},\"name\":\"whalesay\"}]}}\n",
+                    "workflows.argoproj.io/description": "This is a simple hello world example.\nYou can also run it in Python: https://couler-proj.github.io/couler/examples/#hello-world\n"
+                },
+                "creationTimestamp": "2023-04-04T03:51:36Z",
+                "generation": 1,
+                "labels": {
+                    "workflows.argoproj.io/archive-strategy": "false",
+                    "workflows.argoproj.io/creator": "583b4351-f183-4446-b389-f8036b8fa140"
+                },
+                "managedFields": [
+                    {
+                        "apiVersion": "argoproj.io/v1alpha1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:metadata": {
+                                "f:annotations": {
+                                    ".": {},
+                                    "f:kubectl.kubernetes.io/last-applied-configuration": {},
+                                    "f:workflows.argoproj.io/description": {}
+                                },
+                                "f:labels": {
+                                    ".": {},
+                                    "f:workflows.argoproj.io/archive-strategy": {},
+                                    "f:workflows.argoproj.io/creator": {}
+                                }
+                            },
+                            "f:spec": {}
+                        },
+                        "manager": "kubectl-client-side-apply",
+                        "operation": "Update",
+                        "time": "2023-04-04T03:51:36Z"
+                    }
+                ],
+                "name": "hello-world",
+                "namespace": "dev",
+                "uid": "d7f2db29-720f-4abe-9ec9-42a8a259d689"
+            },
+            "spec": {
+                "entrypoint": "whalesay",
+                "templates": [
+                    {
+                        "container": {
+                            "args": [
+                                "hello world"
+                            ],
+                            "command": [
+                                "cowsay"
+                            ],
+                            "image": "docker/whalesay:latest"
+                        },
+                        "name": "whalesay"
+                    }
+                ]
+            }
+        },
+        "oldObject": null,
+        "dryRun": false,
+        "options": {
+            "kind": "CreateOptions",
+            "apiVersion": "meta.k8s.io/v1",
+            "fieldManager": "kubectl-client-side-apply",
+            "fieldValidation": "Strict"
+        }
+    }
+}

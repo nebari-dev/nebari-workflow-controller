@@ -1,0 +1,130 @@
+{
+    "kind": "AdmissionReview",
+    "apiVersion": "admission.k8s.io/v1",
+    "request": {
+        "uid": "c2637bfa-ce28-4358-bfe4-acb099913af3",
+        "kind": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "kind": "Workflow"
+        },
+        "resource": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "resource": "workflows"
+        },
+        "requestKind": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "kind": "Workflow"
+        },
+        "requestResource": {
+            "group": "argoproj.io",
+            "version": "v1alpha1",
+            "resource": "workflows"
+        },
+        "name": "sparkly-bear",
+        "namespace": "dev",
+        "operation": "CREATE",
+        "userInfo": {
+            "username": "system:serviceaccount:dev:argo-edit",
+            "uid": "0246c259-9a86-476e-ae33-f169b6bbe247",
+            "groups": [
+                "system:serviceaccounts",
+                "system:serviceaccounts:dev",
+                "system:authenticated"
+            ]
+        },
+        "object": {
+            "apiVersion": "argoproj.io/v1alpha1",
+            "kind": "Workflow",
+            "metadata": {
+                "creationTimestamp": "2023-04-04T03:36:28Z",
+                "generation": 1,
+                "labels": {
+                    "example": "true",
+                    "workflows.argoproj.io/creator": "452fcf19-d3ca-4813-a250-2b2e1bb7bd9d",
+                    "workflows.argoproj.io/creator-email": "alewis.at.quansight.com"
+                },
+                "managedFields": [
+                    {
+                        "apiVersion": "argoproj.io/v1alpha1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:metadata": {
+                                "f:labels": {
+                                    ".": {},
+                                    "f:example": {},
+                                    "f:workflows.argoproj.io/creator": {},
+                                    "f:workflows.argoproj.io/creator-email": {}
+                                }
+                            },
+                            "f:spec": {},
+                            "f:status": {}
+                        },
+                        "manager": "argo",
+                        "operation": "Update",
+                        "time": "2023-04-04T03:36:28Z"
+                    }
+                ],
+                "name": "sparkly-bear",
+                "namespace": "dev",
+                "uid": "7cc48d0f-5c27-4b62-bc8a-70256913b1c5"
+            },
+            "spec": {
+                "arguments": {
+                    "parameters": [
+                        {
+                            "name": "message",
+                            "value": "hello argo"
+                        }
+                    ]
+                },
+                "entrypoint": "argosay",
+                "podGC": {
+                    "strategy": "OnPodCompletion"
+                },
+                "templates": [
+                    {
+                        "container": {
+                            "args": [
+                                "echo",
+                                "{{inputs.parameters.message}}"
+                            ],
+                            "command": [
+                                "/argosay"
+                            ],
+                            "image": "argoproj/argosay:v2",
+                            "name": "main",
+                            "resources": {}
+                        },
+                        "inputs": {
+                            "parameters": [
+                                {
+                                    "name": "message",
+                                    "value": "{{workflow.parameters.message}}"
+                                }
+                            ]
+                        },
+                        "metadata": {},
+                        "name": "argosay",
+                        "outputs": {}
+                    }
+                ],
+                "ttlStrategy": {
+                    "secondsAfterCompletion": 300
+                }
+            },
+            "status": {
+                "finishedAt": null,
+                "startedAt": null
+            }
+        },
+        "oldObject": null,
+        "dryRun": false,
+        "options": {
+            "kind": "CreateOptions",
+            "apiVersion": "meta.k8s.io/v1"
+        }
+    }
+}
