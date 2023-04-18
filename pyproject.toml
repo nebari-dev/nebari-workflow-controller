@@ -10,7 +10,7 @@ include = ["nebari_workflow_controller"]
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "nebari/_version.py"
+version-file = "nebari-workflow-controller/__init__.py"
 local_scheme = "node-and-timestamp"
 
 
@@ -42,7 +42,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Framework :: Jupyter :: Nebari",
+    # "Framework :: Jupyter :: Nebari",
 ]
 
 dependencies = [
