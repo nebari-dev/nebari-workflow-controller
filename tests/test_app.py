@@ -1,6 +1,6 @@
 import yaml
 import pytest
-from app import get_username_groups
+from nebari_workflow_controller.app import get_username_groups
 
 
 @pytest.mark.parametrize(
