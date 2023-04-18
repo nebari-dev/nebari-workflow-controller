@@ -1,4 +1,5 @@
 import logging
+
 import uvicorn
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,7 @@ def main():
         port=8080,
         reload=True,
     )
+
 
 if __name__ == "__main__":
     main()
