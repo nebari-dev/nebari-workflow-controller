@@ -1,33 +1,20 @@
-import json
+from functools import partial
 import logging
 import os
-from fastapi import Depends, FastAPI, HTTPException, Body
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field
-
-from typing import Any, Dict, List
+from fastapi import FastAPI, Body
 from keycloak import KeycloakAdmin
+
+from nebari_workflow_controller.models import KeycloakUser, KeycloakGroup
 
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-def get_username_groups(request):
-    # get user - Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".  If so, then we can trust the uid from there.  
-    # workflow_submitter = request['request']['userInfo']['username']
-    keycloak_uid = request['request']['object']['metadata']['labels']['workflows.argoproj.io/creator']
-    kcadm = KeycloakAdmin(
-        server_url="http://adam.nebari.dev/auth/",  # TODO: Don't hard code this address
-        username=os.environ['KEYCLOAK_USERNAME'],
-        password=os.environ['KEYCLOAK_PASSWORD'],
-        user_realm_name="master",
-        realm_name="nebari",
-        client_id="admin-cli",
-    )
+allowed_pvcs = {'jupyterhub-dev-share', 'conda-store-dev-share'}
+conda_store_global_namespaces = ['global']
 
-
+def sent_by_argo(request: dict):
     # Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".  If so, then we can trust the uid from there. 
     sent_by_argo = False
     if request['request']['userInfo']['username'].startswith('system:serviceaccount'):
@@ -35,94 +22,100 @@ def get_username_groups(request):
             if managedField.get('manager', '') == 'argo' and 'f:workflows.argoproj.io/creator' in managedField['fieldsV1']['f:metadata']['f:labels']:
                 sent_by_argo = True
                 break
+    return sent_by_argo
 
-    if sent_by_argo:
+
+def get_keycloak_user_info(request: dict) -> KeycloakUser:
+    # Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".  If so, then we can trust the uid from there.  If not, then we have to trust the username from the request.
+
+    # TODO: put try catch here if can't connect to keycloak
+    kcadm = KeycloakAdmin(
+        server_url=os.environ['KEYCLOAK_URL'], #"http://adam.nebari.dev/auth/",  # TODO: add this env var to the nebari deployment
+        username=os.environ['KEYCLOAK_USERNAME'],
+        password=os.environ['KEYCLOAK_PASSWORD'],
+        user_realm_name="master",
+        realm_name="nebari",
+        client_id="admin-cli",
+    )
+
+    if sent_by_argo(request):
         keycloak_uid = request['request']['object']['metadata']['labels']['workflows.argoproj.io/creator']
-        keycloak_uid = 'a667b60d-caf8-4918-bdb0-0f6b9be03fcf'  # TODO: remove this line
         keycloak_username = kcadm.get_user(keycloak_uid)['username']
     else:
         # TODO: put try catch here if username is not found
         keycloak_username = request['request']['userInfo']['username']
         keycloak_uid = kcadm.get_user_id(keycloak_username)
 
-    keycloak_uid = 'a667b60d-caf8-4918-bdb0-0f6b9be03fcf'  # TODO: remove this line
     groups = kcadm.get_user_groups(keycloak_uid)
-    return keycloak_username, groups
+    keycloak_user = KeycloakUser(
+        username=keycloak_username, 
+        id=keycloak_uid, 
+        groups=[KeycloakGroup(**group) for group in groups]
+    )
+    return keycloak_user
 
-# def validate(request, allowed_pvcs):
-#     """Check whether the request is valid.
 
-#     Returns:
-#         bool: whether the request is valid
-#     """
+def base_return_response(allowed, apiVersion, request_uid, message=None):
+    response = {
+        "apiVersion": apiVersion,
+        "kind": "AdmissionReview",
+        "response": {
+            "allowed": allowed,
+            "uid": request_uid,
+        },
+    }
+    if not allowed:
+        response["status"] = {
+                "message": message
+            }
+    return response
+
+
+def find_invalid_volume_mount(container, volume_name_pvc_name_map, allowed_pvc_sub_paths_map):
+    # verify only allowed volume_mounts were mounted
+    for volume_mount in container.get('volumeMounts', {}):
+        if volume_mount['name'] in volume_name_pvc_name_map:
+            for allowed_pvc, allowed_sub_paths in allowed_pvc_sub_paths_map.items():
+                if volume_name_pvc_name_map[volume_mount['name']] == allowed_pvc:
+                    if volume_mount.get('subPath', '') not in allowed_sub_paths:
+                        denyReason = f"Workflow attempts to mount disallowed subPath: {volume_mount}. Allowed subPaths are: {allowed_sub_paths}."
+                        logger.info(denyReason)
+                        return denyReason
+
 
 @app.post("/validate")
 def admission_controller(request=Body(...)):
-
-    def return_forbid_response(message):
-        return {
-            "apiVersion": request['apiVersion'],
-            "kind": "AdmissionReview",
-            "response": {
-                "allowed": False,
-                "uid": request['request']['uid'],
-                "status": {
-                    "message": message
-                },
-            },
-        }
+    ku = get_keycloak_user_info(request)
     
-    allow_response = {
-        "apiVersion": request['apiVersion'],
-        "kind": "AdmissionReview",
-        "response": {
-            "uid": request['request']['uid'],
-            "allowed": True
-        }
-    }
-
-    keycloak_username, groups = get_username_groups(request)
-    shared_filesystem_sub_paths = set(['shared' + group['path'] for group in groups] + ['home/' + keycloak_username])
-    conda_store_sub_paths = set([group['path'].replace('/', '') for group in groups] + ['global', keycloak_username])
-    print(groups)
-
+    return_response = partial(base_return_response, apiVersion=request['apiVersion'], request_uid=request['request']['uid'])    
+    shared_filesystem_sub_paths = set(['shared' + group.path for group in ku.groups] + ['home/' + ku.username])
+    conda_store_sub_paths = set([group.path.replace('/', '') for group in ku.groups] + conda_store_global_namespaces + [ku.username])
+    allowed_pvc_sub_paths_iterable = zip(
+        ("jupyterhub-dev-share", "conda-store-dev-share"), 
+        (shared_filesystem_sub_paths, conda_store_sub_paths)
+    )
+    
     # verify only allowed volumes were mounted
-    allowed_pvcs = {'jupyterhub-dev-share', 'conda-store-dev-share'}
-    volume_name_allowed_pvc_map = {}
+    volume_name_pvc_name_map = {}
     for volume in request.get('request', {}).get('object', {}).get('spec', {}).get('volumes', {}):
         if 'persistentVolumeClaim' in volume:
             if volume['persistentVolumeClaim']['claimName'] not in allowed_pvcs:
                 logger.info(f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}")
                 denyReason = f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}. Allowed PVCs are: {allowed_pvcs}."
-                return return_forbid_response(denyReason)
+                return return_response(False, message=denyReason)
             else:
-                volume_name_allowed_pvc_map[volume['name']] = volume['persistentVolumeClaim']['claimName']
-
-    def _verify_volume_mounts(container):
-        # verify only allowed volume_mounts were mounted
-        for volume_mount in container.get('volumeMounts', {}):
-            if volume_mount['name'] in volume_name_allowed_pvc_map:
-                if volume_name_allowed_pvc_map[volume_mount['name']] == "jupyterhub-dev-share":
-                    if volume_mount.get('subPath', '') not in shared_filesystem_sub_paths:
-                        logger.info(f"Workflow attempts to mount disallowed subPath: {volume_mount['subPath']}")
-                        denyReason = f"Workflow attempts to mount disallowed subPath: {volume_mount['subPath']}. Allowed subPaths are: {shared_filesystem_sub_paths}."
-                        return return_forbid_response(denyReason)
-                elif volume_name_allowed_pvc_map[volume_mount['name']] == "conda-store-dev-share":
-                    if volume_mount.get('subPath', '') not in conda_store_sub_paths:
-                        logger.info(f"Workflow attempts to mount disallowed subPath: {volume_mount['subPath']}")
-                        denyReason = f"Workflow attempts to mount disallowed subPath: {volume_mount['subPath']}. Allowed subPaths are: {conda_store_sub_paths}."
-                        return return_forbid_response(denyReason)
+                volume_name_pvc_name_map[volume['name']] = volume['persistentVolumeClaim']['claimName']
 
     for template in request['request']['object']['spec']['templates']:
         # verify container
-        _verify_volume_mounts(template['container'])
+        if denyReason := find_invalid_volume_mount(template['container'], volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable):
+            return return_response(False, message=denyReason)
+        
         # verify initContainers
         for initContainer in template.get('initContainers', {}):
-            _verify_volume_mounts(initContainer)
+            if denyReason := find_invalid_volume_mount(initContainer, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable):
+                return return_response(False, message=denyReason)
 
-        # TODO: How to template all the different things to check and specify allowed values (assuming I make this a reusable package eventually)?
-
-    logger.info(f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}")
-        
-    return allow_response
+    logger.info(f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}")        
+    return return_response(True)
 
