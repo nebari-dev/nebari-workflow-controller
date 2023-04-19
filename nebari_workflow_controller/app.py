@@ -37,7 +37,7 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
     kcadm = KeycloakAdmin(
         server_url=os.environ[
             "KEYCLOAK_URL"
-        ],  # "http://adam.nebari.dev/auth/",  # TODO: add this env var to the nebari deployment
+        ],  # TODO: add this env var to the nebari deployment
         username=os.environ["KEYCLOAK_USERNAME"],
         password=os.environ["KEYCLOAK_PASSWORD"],
         user_realm_name="master",
