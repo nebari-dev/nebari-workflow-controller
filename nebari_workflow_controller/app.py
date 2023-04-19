@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 allowed_pvcs = {"jupyterhub-dev-share", "conda-store-dev-share"}
-conda_store_global_namespaces = ["global"]
+conda_store_global_namespaces = ["global", "nebari-git"]
 
 
 def sent_by_argo(request: dict):
@@ -79,12 +79,12 @@ def base_return_response(allowed, apiVersion, request_uid, message=None):
 
 
 def find_invalid_volume_mount(
-    container, volume_name_pvc_name_map, allowed_pvc_sub_paths_map
+    container, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
 ):
     # verify only allowed volume_mounts were mounted
     for volume_mount in container.get("volumeMounts", {}):
         if volume_mount["name"] in volume_name_pvc_name_map:
-            for allowed_pvc, allowed_sub_paths in allowed_pvc_sub_paths_map.items():
+            for allowed_pvc, allowed_sub_paths in allowed_pvc_sub_paths_iterable:
                 if volume_name_pvc_name_map[volume_mount["name"]] == allowed_pvc:
                     if volume_mount.get("subPath", "") not in allowed_sub_paths:
                         denyReason = f"Workflow attempts to mount disallowed subPath: {volume_mount}. Allowed subPaths are: {allowed_sub_paths}."
@@ -94,7 +94,7 @@ def find_invalid_volume_mount(
 
 @app.post("/validate")
 def admission_controller(request=Body(...)):
-    ku = get_keycloak_user_info(request)
+    keycloak_user = get_keycloak_user_info(request)
 
     return_response = partial(
         base_return_response,
@@ -102,16 +102,19 @@ def admission_controller(request=Body(...)):
         request_uid=request["request"]["uid"],
     )
     shared_filesystem_sub_paths = set(
-        ["shared" + group.path for group in ku.groups] + ["home/" + ku.username]
+        ["shared" + group.path for group in keycloak_user.groups]
+        + ["home/" + keycloak_user.username]
     )
     conda_store_sub_paths = set(
-        [group.path.replace("/", "") for group in ku.groups]
+        [group.path.replace("/", "") for group in keycloak_user.groups]
         + conda_store_global_namespaces
-        + [ku.username]
+        + [keycloak_user.username]
     )
-    allowed_pvc_sub_paths_iterable = zip(
-        ("jupyterhub-dev-share", "conda-store-dev-share"),
-        (shared_filesystem_sub_paths, conda_store_sub_paths),
+    allowed_pvc_sub_paths_iterable = tuple(
+        zip(
+            ("jupyterhub-dev-share", "conda-store-dev-share"),
+            (shared_filesystem_sub_paths, conda_store_sub_paths),
+        )
     )
 
     # verify only allowed volumes were mounted

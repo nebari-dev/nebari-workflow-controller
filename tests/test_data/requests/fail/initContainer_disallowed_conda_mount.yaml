@@ -92,11 +92,17 @@
                             "conda",
                             "run",
                             "-n",
-                            "nebari-git-dask",
+                            "global-dask",
                             "python",
-                            "/home/ad/dask_version.py",
+                            "/home/mocked_username/dask_version.py",
                           ],
-                        "env": [{ "name": "HOME", "value": "/home/ad" }],
+                        "env":
+                          [
+                            {
+                              "name": "HOME",
+                              "value": "/home/mocked_username",
+                            },
+                          ],
                         "image": "quay.io/nebari/nebari-jupyterlab:2023.1.1",
                         "name": "",
                         "resources": {},
@@ -105,9 +111,9 @@
                         "volumeMounts":
                           [
                             {
-                              "mountPath": "/home/ad",
+                              "mountPath": "/home/mocked_username",
                               "name": "home",
-                              "subPath": "home/ad",
+                              "subPath": "home/mocked_username",
                             },
                             {
                               "mountPath": "/shared/admin",
@@ -120,14 +126,9 @@
                               "subPath": "shared/analyst",
                             },
                             {
-                              "mountPath": "/home/conda/ad",
+                              "mountPath": "/home/conda/mocked_username",
                               "name": "conda-store",
-                              "subPath": "ad",
-                            },
-                            {
-                              "mountPath": "/home/conda/nebari-git",
-                              "name": "conda-store",
-                              "subPath": "nebari-git",
+                              "subPath": "mocked_username",
                             },
                             {
                               "mountPath": "/home/conda/global",
@@ -135,9 +136,9 @@
                               "subPath": "global",
                             },
                             {
-                              "mountPath": "/home/conda/admin",
+                              "mountPath": "/home/conda/super-admin",
                               "name": "conda-store",
-                              "subPath": "admin",
+                              "subPath": "super-admin",
                             },
                             {
                               "mountPath": "/home/conda/analyst",
@@ -170,7 +171,7 @@
                             [
                               "sh",
                               "-c",
-                              "mkdir -p /mnt/home/ad && chmod 777 /mnt/home/ad && cp -r /etc/skel/. /mnt/home/ad",
+                              "mkdir -p /mnt/home/mocked_username && chmod 777 /mnt/home/mocked_username && cp -r /etc/skel/. /mnt/home/mocked_username",
                             ],
                           "image": "busybox:1.31",
                           "imagePullPolicy": "IfNotPresent",
@@ -181,7 +182,11 @@
                           "terminationMessagePolicy": "File",
                           "volumeMounts":
                             [
-                              { "mountPath": "/mnt", "name": "home" },
+                              {
+                                "mountPath": "/mnt/mocked_username",
+                                "name": "home",
+                                "subPath": "home/mocked_username",
+                              },
                               { "mountPath": "/etc/skel", "name": "skel" },
                             ],
                         },
@@ -200,14 +205,25 @@
                           "terminationMessagePath": "/dev/termination-log",
                           "terminationMessagePolicy": "File",
                           "volumeMounts":
-                            [{ "mountPath": "/mnt", "name": "home" }],
+                            [
+                              {
+                                "mountPath": "/mnt/shared/admin",
+                                "name": "home",
+                                "subPath": "shared/admin",
+                              },
+                              {
+                                "mountPath": "/mnt/shared/analyst",
+                                "name": "home",
+                                "subPath": "shared/analyst",
+                              },
+                            ],
                         },
                         {
                           "command":
                             [
                               "sh",
                               "-c",
-                              "mkdir -p /mnt/ad && chmod 755 /mnt/ad && mkdir -p /mnt/nebari-git && chmod 755 /mnt/nebari-git && mkdir -p /mnt/global && chmod 755 /mnt/global && mkdir -p /mnt/admin && chmod 755 /mnt/admin && mkdir -p /mnt/analyst && chmod 755 /mnt/analyst",
+                              "mkdir -p /mnt/mocked_username && chmod 755 /mnt/mocked_username && mkdir -p /mnt/global && chmod 755 /mnt/global && mkdir -p /mnt/admin && chmod 755 /mnt/admin && mkdir -p /mnt/analyst && chmod 755 /mnt/analyst",
                             ],
                           "image": "busybox:1.31",
                           "imagePullPolicy": "IfNotPresent",
@@ -217,7 +233,28 @@
                           "terminationMessagePath": "/dev/termination-log",
                           "terminationMessagePolicy": "File",
                           "volumeMounts":
-                            [{ "mountPath": "/mnt", "name": "conda-store" }],
+                            [
+                              {
+                                "mountPath": "/mnt/mocked_username",
+                                "name": "conda-store",
+                                "subPath": "mocked_username",
+                              },
+                              {
+                                "mountPath": "/mnt/global",
+                                "name": "conda-store",
+                                "subPath": "global",
+                              },
+                              {
+                                "mountPath": "/mnt/admin",
+                                "name": "conda-store",
+                                "subPath": "admin",
+                              },
+                              {
+                                "mountPath": "/mnt/analyst",
+                                "name": "conda-store",
+                                "subPath": "analyst",
+                              },
+                            ],
                         },
                       ],
                     "inputs": {},

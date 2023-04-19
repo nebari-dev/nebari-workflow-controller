@@ -1,3 +1,4 @@
+# This should in fact pass, but the attempt to pretend to be another user should not succeed.
 {
     "kind": "AdmissionReview",
     "apiVersion": "admission.k8s.io/v1",
