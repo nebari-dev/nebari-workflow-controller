@@ -1,0 +1,318 @@
+{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "request":
+    {
+      "uid": "d72e38c4-c7d4-48dc-a0a4-ea9b5f8ad425",
+      "kind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "resource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "requestKind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "requestResource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "name": "workflow-with-init-containers-mhnbz",
+      "namespace": "dev",
+      "operation": "CREATE",
+      "userInfo":
+        {
+          "username": "system:serviceaccount:dev:argo-admin",
+          "uid": "eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9",
+          "groups":
+            [
+              "system:serviceaccounts",
+              "system:serviceaccounts:dev",
+              "system:authenticated",
+            ],
+        },
+      "object":
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Workflow",
+          "metadata":
+            {
+              "creationTimestamp": "2023-04-17T01:13:05Z",
+              "generateName": "workflow-with-init-containers-",
+              "generation": 1,
+              "labels":
+                {
+                  "workflows.argoproj.io/creator": "a667b60d-caf8-4918-bdb0-0f6b9be03fcf",
+                  "workflows.argoproj.io/creator-email": "ad.at.ad.com",
+                },
+              "managedFields":
+                [
+                  {
+                    "apiVersion": "argoproj.io/v1alpha1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1":
+                      {
+                        "f:metadata":
+                          {
+                            "f:generateName": {},
+                            "f:labels":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/creator": {},
+                                "f:workflows.argoproj.io/creator-email": {},
+                              },
+                          },
+                        "f:spec": {},
+                        "f:status": {},
+                      },
+                    "manager": "argo",
+                    "operation": "Update",
+                    "time": "2023-04-17T01:13:05Z",
+                  },
+                ],
+              "name": "workflow-with-init-containers-mhnbz",
+              "namespace": "dev",
+              "uid": "03be388c-da21-4955-a5b0-c4ace9a8ec6c",
+            },
+          "spec":
+            {
+              "arguments": {},
+              "entrypoint": "init-container-example",
+              "securityContext": { "fsGroup": 100 },
+              "templates":
+                [
+                  {
+                    "container":
+                      {
+                        "command":
+                          [
+                            "conda",
+                            "run",
+                            "-n",
+                            "global-dask",
+                            "python",
+                            "/home/mocked_username/dask_version.py",
+                          ],
+                        "env":
+                          [
+                            {
+                              "name": "HOME",
+                              "value": "/home/mocked_username",
+                            },
+                          ],
+                        "image": "quay.io/nebari/nebari-jupyterlab:2023.1.1",
+                        "name": "",
+                        "resources": {},
+                        "securityContext":
+                          { "runAsGroup": 100, "runAsUser": 1000 },
+                        "volumeMounts":
+                          [
+                            {
+                              "mountPath": "/home/mocked_username",
+                              "name": "home",
+                              "subPath": "home/mocked_username",
+                            },
+                            {
+                              "mountPath": "/shared/admin",
+                              "name": "home",
+                              "subPath": "shared/admin",
+                            },
+                            {
+                              "mountPath": "/shared/analyst",
+                              "name": "home",
+                              "subPath": "shared/analyst",
+                            },
+                            {
+                              "mountPath": "/home/conda/mocked_username",
+                              "name": "conda-store",
+                              "subPath": "mocked_username",
+                            },
+                            {
+                              "mountPath": "/home/conda/global",
+                              "name": "conda-store",
+                              "subPath": "global",
+                            },
+                            {
+                              "mountPath": "/home/conda/admin",
+                              "name": "conda-store",
+                              "subPath": "admin",
+                            },
+                            {
+                              "mountPath": "/home/conda/analyst",
+                              "name": "conda-store",
+                              "subPath": "analyst",
+                            },
+                            { "mountPath": "/etc/dask", "name": "dask-etc" },
+                            {
+                              "mountPath": "/etc/ipython",
+                              "name": "etc-ipython",
+                            },
+                            {
+                              "mountPath": "/etc/jupyter",
+                              "name": "etc-jupyter",
+                            },
+                            {
+                              "mountPath": "/opt/conda/envs/default/share/jupyter/lab/settings",
+                              "name": "jupyterlab-settings",
+                            },
+                            {
+                              "mountPath": "/shared/examples",
+                              "name": "shared-examples",
+                            },
+                          ],
+                      },
+                    "initContainers":
+                      [
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/home/mocked_username && chmod 777 /mnt/home/mocked_username && cp -r /etc/skel/. /mnt/home/mocked_username",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-home-mount",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/mocked_username",
+                                "name": "home",
+                                "subPath": "home/mocked_username",
+                              },
+                              { "mountPath": "/etc/skel", "name": "skel" },
+                            ],
+                        },
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/shared/admin && chmod 777 /mnt/shared/admin && mkdir -p /mnt/shared/analyst && chmod 777 /mnt/shared/analyst",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-shared-mounts",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/shared/admin",
+                                "name": "home",
+                                "subPath": "shared/admin",
+                              },
+                              {
+                                "mountPath": "/mnt/shared/analyst",
+                                "name": "home",
+                                "subPath": "shared/analyst",
+                              },
+                            ],
+                        },
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/mocked_username && chmod 755 /mnt/mocked_username && mkdir -p /mnt/global && chmod 755 /mnt/global && mkdir -p /mnt/admin && chmod 755 /mnt/admin && mkdir -p /mnt/analyst && chmod 755 /mnt/analyst",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-conda-store-mounts",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/mocked_username",
+                                "name": "conda-store",
+                                "subPath": "mocked_username",
+                              },
+                              {
+                                "mountPath": "/mnt/global",
+                                "name": "conda-store",
+                                "subPath": "global",
+                              },
+                              {
+                                "mountPath": "/mnt/admin",
+                                "name": "conda-store",
+                                "subPath": "admin",
+                              },
+                              {
+                                "mountPath": "/mnt/analyst",
+                                "name": "conda-store",
+                                "subPath": "analyst",
+                              },
+                            ],
+                        },
+                      ],
+                    "inputs": {},
+                    "metadata": {},
+                    "name": "init-container-example",
+                    "outputs": {},
+                  },
+                ],
+              "volumes":
+                [
+                  {
+                    "name": "home",
+                    "persistentVolumeClaim":
+                      { "claimName": "jupyterhub-dev-share" },
+                  },
+                  {
+                    "configMap": { "defaultMode": 420, "name": "etc-skel" },
+                    "name": "skel",
+                  },
+                  {
+                    "name": "conda-store",
+                    "persistentVolumeClaim":
+                      { "claimName": "conda-store-dev-share" },
+                  },
+                  {
+                    "name": "conda-store",
+                    "persistentVolumeClaim":
+                      { "claimName": "super-secret-other-share" },
+                  },
+                  {
+                    "configMap": { "defaultMode": 420, "name": "dask-etc" },
+                    "name": "dask-etc",
+                  },
+                  {
+                    "configMap": { "defaultMode": 420, "name": "etc-ipython" },
+                    "name": "etc-ipython",
+                  },
+                  {
+                    "configMap": { "defaultMode": 420, "name": "etc-jupyter" },
+                    "name": "etc-jupyter",
+                  },
+                  {
+                    "configMap":
+                      { "defaultMode": 420, "name": "jupyterlab-settings" },
+                    "name": "jupyterlab-settings",
+                  },
+                  {
+                    "configMap":
+                      { "defaultMode": 420, "name": "shared-examples" },
+                    "name": "shared-examples",
+                  },
+                  { "name": "kube-api-access-qkkk9" },
+                ],
+            },
+          "status": { "finishedAt": None, "startedAt": None },
+        },
+      "oldObject": None,
+      "dryRun": False,
+      "options": { "kind": "CreateOptions", "apiVersion": "meta.k8s.io/v1" },
+    },
+}

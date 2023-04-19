@@ -1,0 +1,117 @@
+{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "request":
+    {
+      "uid": "c1bba5c6-2189-41ff-9487-be504c04487b",
+      "kind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "resource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "requestKind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "requestResource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "name": "hello-world",
+      "namespace": "dev",
+      "operation": "CREATE",
+      "userInfo":
+        {
+          "username": "system:serviceaccount:dev:argo-admin",
+          "uid": "eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9",
+          "groups":
+            [
+              "system:serviceaccounts",
+              "system:serviceaccounts:dev",
+              "system:authenticated",
+            ],
+        },
+      "object":
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Workflow",
+          "metadata":
+            {
+              "annotations":
+                {
+                  "workflows.argoproj.io/description": 'This is a simple hello world example.\nYou can also run it in Python: https://couler-proj.github.io/couler/examples/#hello-world\n',
+                },
+              "creationTimestamp": "2023-04-15T21:36:30Z",
+              "generation": 1,
+              "labels":
+                {
+                  "workflows.argoproj.io/archive-strategy": "false",
+                  "workflows.argoproj.io/creator": "a667b60d-caf8-4918-bdb0-0f6b9be03fcf",
+                  "workflows.argoproj.io/creator-email": "ad.at.ad.com",
+                },
+              "managedFields":
+                [
+                  {
+                    "apiVersion": "argoproj.io/v1alpha1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1":
+                      {
+                        "f:metadata":
+                          {
+                            "f:annotations":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/description": {},
+                              },
+                            "f:labels":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/archive-strategy": {},
+                                "f:workflows.argoproj.io/creator": {},
+                                "f:workflows.argoproj.io/creator-email": {},
+                              },
+                          },
+                        "f:spec": {},
+                        "f:status": {},
+                      },
+                    "manager": "argo",
+                    "operation": "Update",
+                    "time": "2023-04-15T21:36:30Z",
+                  },
+                ],
+              "name": "hello-world",
+              "namespace": "dev",
+              "uid": "ebd552f6-9cd1-4b50-8a8c-838adc4011d0",
+            },
+          "spec":
+            {
+              "arguments": {},
+              "entrypoint": "whalesay",
+              "templates":
+                [
+                  {
+                    "container":
+                      {
+                        "args": ["hello world"],
+                        "command": ["cowsay"],
+                        "image": "docker/whalesay:latest",
+                        "name": "",
+                        "resources": {},
+                      },
+                    "inputs": {},
+                    "metadata": {},
+                    "name": "whalesay",
+                    "outputs": {},
+                  },
+                ],
+            },
+          "status": { "finishedAt": None, "startedAt": None },
+        },
+      "oldObject": None,
+      "dryRun": False,
+      "options": { "kind": "CreateOptions", "apiVersion": "meta.k8s.io/v1" },
+    },
+}
