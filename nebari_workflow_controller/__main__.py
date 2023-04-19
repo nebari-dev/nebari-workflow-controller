@@ -7,10 +7,10 @@ logger = logging.getLogger(__name__)
 
 def main():
     uvicorn.run(
-        "app:app",
+        "nebari_workflow_controller.app:app",
         host="0.0.0.0",
         port=8080,
-        reload=True,
+        reload=False,
     )
 
 

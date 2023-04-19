@@ -1,6 +1,6 @@
 # Run project
 - `pip install .`
-- `python main.py`
+- `python -m nebari_workflow_controller`
 
 # Developing on this project
 Run `pip install -e .[dev]`
