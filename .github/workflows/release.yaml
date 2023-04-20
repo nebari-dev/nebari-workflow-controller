@@ -1,6 +1,7 @@
 name: Test & Publish PyPi release
 
 on:
+  workflow_dispatch: null
   release:
     types: [created]
 
