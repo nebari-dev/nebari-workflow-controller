@@ -40,8 +40,8 @@ jobs:
           namespace: "admin/quansight"
           role: "repository-nebari-dev-nebari-role"
           secrets: |
-            kv/data/repository/nebari-dev/nebari/shared_secrets TEST_PYPI_USERNAME | TEST_PYPI_USERNAME;
-            kv/data/repository/nebari-dev/nebari/shared_secrets TEST_PYPI_PASSWORD | TEST_PYPI_PASSWORD;
+            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_USERNAME | TEST_PYPI_USERNAME;
+            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_PASSWORD | TEST_PYPI_PASSWORD;
 
 
       - name: Publish to test PyPI
@@ -94,8 +94,8 @@ jobs:
           namespace: "admin/quansight"
           role: "repository-nebari-dev-nebari-role"
           secrets: |
-            kv/data/repository/nebari-dev/nebari/shared_secrets PYPI_USERNAME | PYPI_USERNAME;
-            kv/data/repository/nebari-dev/nebari/shared_secrets PYPI_PASSWORD | PYPI_PASSWORD;
+            kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_USERNAME | PYPI_USERNAME;
+            kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_PASSWORD | PYPI_PASSWORD;
 
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
