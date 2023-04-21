@@ -15,17 +15,17 @@ jobs:
 
 
     steps:
-      - name: Retrieve secret from Vault
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          method: jwt
-          url: "https://quansight-public-vault-fe415d04.c219cf75.z1.hashicorp.cloud:8200"
-          namespace: "admin/quansight"
-          role: "repository-nebari-dev-nebari-workflow-controller-role"
-          # role: "repository-nebari-dev-nebari-role"
-          secrets: |
-            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_USERNAME | TEST_PYPI_USERNAME;
-            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_PASSWORD | TEST_PYPI_PASSWORD;
+      # - name: Retrieve secret from Vault
+      #   uses: hashicorp/vault-action@v2.5.0
+      #   with:
+      #     method: jwt
+      #     url: "https://quansight-public-vault-fe415d04.c219cf75.z1.hashicorp.cloud:8200"
+      #     namespace: "admin/quansight"
+      #     role: "repository-nebari-dev-nebari-workflow-controller-role"
+      #     # role: "repository-nebari-dev-nebari-role"
+      #     secrets: |
+      #       kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_USERNAME | TEST_PYPI_USERNAME;
+      #       kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_PASSWORD | TEST_PYPI_PASSWORD;
 
       - name: Set up python
         uses: actions/setup-python@v4
@@ -49,23 +49,11 @@ jobs:
       - name: Build source and binary
         run: python -m build --sdist --wheel .
 
-      - name: Retrieve secret from Vault
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          method: jwt
-          url: "https://quansight-public-vault-fe415d04.c219cf75.z1.hashicorp.cloud:8200"
-          namespace: "admin/quansight"
-          role: "repository-nebari-dev-nebari-role"
-          secrets: |
-            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_USERNAME | TEST_PYPI_USERNAME;
-            kv/data/repository/nebari-dev/nebari-workflow-controller TEST_PYPI_PASSWORD | TEST_PYPI_PASSWORD;
-
-
       - name: Publish to test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: ${{ env.TEST_PYPI_API_USERNAME }}
-          password: ${{ env.TEST_PYPI_API_PASSWORD }}
+          # user: ${{ env.TEST_PYPI_API_USERNAME }}
+          # password: ${{ env.TEST_PYPI_API_PASSWORD }}
           repository-url: https://test.pypi.org/legacy/
 
       - name: Sleep
@@ -103,19 +91,19 @@ jobs:
       - name: Build source and binary
         run: python -m build --sdist --wheel .
 
-      - name: Retrieve secret from Vault
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          method: jwt
-          url: "https://quansight-public-vault-fe415d04.c219cf75.z1.hashicorp.cloud:8200"
-          namespace: "admin/quansight"
-          role: "repository-nebari-dev-nebari-role"
-          secrets: |
-            kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_USERNAME | PYPI_USERNAME;
-            kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_PASSWORD | PYPI_PASSWORD;
+      # - name: Retrieve secret from Vault
+      #   uses: hashicorp/vault-action@v2.5.0
+      #   with:
+      #     method: jwt
+      #     url: "https://quansight-public-vault-fe415d04.c219cf75.z1.hashicorp.cloud:8200"
+      #     namespace: "admin/quansight"
+      #     role: "repository-nebari-dev-nebari-role"
+      #     secrets: |
+      #       kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_USERNAME | PYPI_USERNAME;
+      #       kv/data/repository/nebari-dev/nebari-workflow-controller PYPI_PASSWORD | PYPI_PASSWORD;
 
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: ${{ env.PYPI_USERNAME }}
-          password: ${{ env.PYPI_PASSWORD }}
+        # with:
+          # user: ${{ env.PYPI_USERNAME }}
+          # password: ${{ env.PYPI_PASSWORD }}
