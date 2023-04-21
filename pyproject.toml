@@ -59,7 +59,7 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-mock",
-    "ruamel.yaml==0.17.21",
+    "pyyaml",
     "build",
 ]
 

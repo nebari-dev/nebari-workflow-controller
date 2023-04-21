@@ -35,9 +35,7 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
 
     # TODO: put try catch here if can't connect to keycloak
     kcadm = KeycloakAdmin(
-        server_url=os.environ[
-            "KEYCLOAK_URL"
-        ],  # TODO: add this env var to the nebari deployment
+        server_url=os.environ["KEYCLOAK_URL"],
         username=os.environ["KEYCLOAK_USERNAME"],
         password=os.environ["KEYCLOAK_PASSWORD"],
         user_realm_name="master",
