@@ -72,7 +72,7 @@ def base_return_response(allowed, apiVersion, request_uid, message=None):
         },
     }
     if not allowed:
-        response["status"] = {"message": message}
+        response["response"]["status"] = {"message": message}
     return response
 
 

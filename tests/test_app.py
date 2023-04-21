@@ -60,3 +60,5 @@ def test_admission_controller(mocker, request_file, allowed):
     response = admission_controller(request)
     print(response)
     assert response["response"]["allowed"] == allowed
+    if not allowed:
+        assert response["response"]["status"]["message"]
