@@ -13,8 +13,8 @@ source = "vcs"
 version-file = "nebari_workflow_controller/_version.py"
 local_scheme = "node-and-timestamp"
 
-[project.entry-points."setuptools_scm.version_scheme"]
-"calver-by-date" = "setuptools_scm.version:calver_by_date"
+# [project.entry-points."setuptools_scm.version_scheme"]
+# "calver-by-date" = "setuptools_scm.version:calver_by_date"
 
 ### Project ###
 [project]
