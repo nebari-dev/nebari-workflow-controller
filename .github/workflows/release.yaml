@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+      contents: read
 
     steps:
       - name: Set up python
@@ -56,6 +57,7 @@ jobs:
     needs: test-pypi
     permissions:
       id-token: write
+      contents: read
 
     steps:
       - name: Set up python
