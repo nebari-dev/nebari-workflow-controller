@@ -1,0 +1,114 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: ci-example-
+    spec:
+      arguments:
+        parameters:
+        - name: revision
+          value: cfe12d6
+      entrypoint: ci-example
+      templates:
+      - inputs:
+          parameters:
+          - name: revision
+        name: ci-example
+        steps:
+        - - arguments:
+              parameters:
+              - name: revision
+                value: '{{inputs.parameters.revision}}'
+            name: build
+            template: build-golang-example
+        - - arguments:
+              parameters:
+              - name: os-image
+                value: '{{item.image}}:{{item.tag}}'
+            name: test
+            template: run-hello
+            withItems:
+            - image: debian
+              tag: '9.1'
+            - image: alpine
+              tag: '3.6'
+            - image: ubuntu
+              tag: '17.10'
+      - container:
+          args:
+          - ' cd /go/src/github.com/golang/example/hello && git status && go build
+            -v . '
+          command:
+          - sh
+          - -c
+          image: golang:1.8
+          volumeMounts:
+          - mountPath: /go
+            name: workdir
+        inputs:
+          artifacts:
+          - git:
+              repo: https://github.com/golang/example.git
+              revision: '{{inputs.parameters.revision}}'
+            name: code
+            path: /go/src/github.com/golang/example
+          parameters:
+          - name: revision
+        name: build-golang-example
+      - container:
+          args:
+          - ' uname -a ; cat /etc/os-release ; /go/src/github.com/golang/example/hello/hello '
+          command:
+          - sh
+          - -c
+          image: '{{inputs.parameters.os-image}}'
+          volumeMounts:
+          - mountPath: /go
+            name: workdir
+        inputs:
+          parameters:
+          - name: os-image
+        name: run-hello
+      volumeClaimTemplates:
+      - metadata:
+          name: workdir
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -7,30 +9,15 @@ from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 @pytest.mark.parametrize(
     "request_file,allowed",
-    # [
-    # 	(str(p), True) for p in Path('./tests/test_data/requests/pass').glob('*.yaml')
-    # ] + [
-    # 	(str(p), False) for p in Path('./tests/test_data/requests/fail').glob('*.yaml')
-    # ]
-    [
-        ("tests/test_data/requests/pass/browser_hello_world.yaml", True),
-        ("tests/test_data/requests/pass/argo_cli_hello_world.yaml", True),
-        ("tests/test_data/requests/pass/jupyterlab_pod.yaml", True),
-        ("tests/test_data/requests/pass/kubectl_malicious.yaml", True),
-        ("tests/test_data/requests/fail/initContainer_empty_subPath.yaml", False),
-        ("tests/test_data/requests/fail/container_empty_subPath.yaml", False),
-        ("tests/test_data/requests/fail/disallowed_volume.yaml", False),
-        ("tests/test_data/requests/fail/container_disallowed_file_mount.yaml", False),
-        (
-            "tests/test_data/requests/fail/initContainer_disallowed_conda_mount.yaml",
-            False,
-        ),
-        ("tests/test_data/requests/fail/container_disallowed_conda_mount.yaml", False),
-        (
-            "tests/test_data/requests/fail/initContainer_disallowed_file_mount.yaml",
-            False,
-        ),
-    ],
+    sorted(
+        [(str(p), True) for p in Path("./tests/test_data/requests/pass").glob("*.yaml")]
+    )
+    + sorted(
+        [
+            (str(p), False)
+            for p in Path("./tests/test_data/requests/fail").glob("*.yaml")
+        ]
+    ),
 )
 def test_admission_controller(mocker, request_file, allowed):
     mocker.patch(

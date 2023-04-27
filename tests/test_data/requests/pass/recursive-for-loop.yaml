@@ -1,0 +1,84 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: recursive-loop-
+    spec:
+      entrypoint: plan
+      templates:
+      - name: plan
+        steps:
+        - - arguments:
+              parameters:
+              - name: counter
+                value: '0'
+              - name: limit
+                value: '10'
+            name: recurse
+            template: loop
+      - inputs:
+          parameters:
+          - name: counter
+          - name: limit
+        name: loop
+        steps:
+        - - arguments:
+              parameters:
+              - name: counter
+                value: '{{inputs.parameters.counter}}'
+            name: iterate-counter
+            template: counter-iteration
+        - - arguments:
+              parameters:
+              - name: counter
+                value: '{{steps.iterate-counter.outputs.result}}'
+              - name: limit
+                value: '{{inputs.parameters.limit}}'
+            name: continue
+            template: loop
+            when: '{{steps.iterate-counter.outputs.result}} < {{inputs.parameters.limit}}'
+      - inputs:
+          parameters:
+          - name: counter
+        name: counter-iteration
+        script:
+          command:
+          - python
+          image: python:alpine3.6
+          source: 'print({{inputs.parameters.counter}} + 1)
+
+            '
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

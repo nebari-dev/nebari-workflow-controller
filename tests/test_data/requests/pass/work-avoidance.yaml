@@ -1,0 +1,130 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: work-avoidance-
+    spec:
+      entrypoint: main
+      onExit: save-markers
+      templates:
+      - name: main
+        steps:
+        - - name: load-markers
+            template: load-markers
+        - - arguments:
+              parameters:
+              - name: num
+                value: '{{item}}'
+            name: echo
+            template: echo
+            withSequence:
+              count: '3'
+      - container:
+          command:
+          - mkdir
+          - -p
+          - /work/markers
+          image: docker/whalesay:latest
+          volumeMounts:
+          - mountPath: /work
+            name: work
+        inputs:
+          artifacts:
+          - name: markers
+            optional: true
+            path: /work/markers
+            s3:
+              accessKeySecret:
+                key: accesskey
+                name: my-minio-cred
+              bucket: my-bucket
+              endpoint: minio:9000
+              insecure: true
+              key: work-avoidance-markers
+              secretKeySecret:
+                key: secretkey
+                name: my-minio-cred
+        name: load-markers
+      - inputs:
+          parameters:
+          - name: num
+        name: echo
+        script:
+          command:
+          - bash
+          - -eux
+          image: docker/whalesay:latest
+          source: "marker=/work/markers/$(date +%Y-%m-%d)-echo-{{inputs.parameters.num}}\n\
+            if [ -e  ${marker} ]; then\n  echo \"work already done\"\n  exit 0\nfi\n\
+            echo \"working very hard\"\n# toss a virtual coin and exit 1 if 1\nif\
+            \ [ $(($(($RANDOM%10))%2)) -eq 1 ]; then\n  echo \"oh no!\"\n  exit 1\n\
+            fi\ntouch ${marker}\n"
+          volumeMounts:
+          - mountPath: /work
+            name: work
+      - container:
+          command:
+          - 'true'
+          image: docker/whalesay:latest
+          volumeMounts:
+          - mountPath: /work
+            name: work
+        name: save-markers
+        outputs:
+          artifacts:
+          - name: markers
+            path: /work/markers
+            s3:
+              accessKeySecret:
+                key: accesskey
+                name: my-minio-cred
+              bucket: my-bucket
+              endpoint: minio:9000
+              insecure: true
+              key: work-avoidance-markers
+              secretKeySecret:
+                key: secretkey
+                name: my-minio-cred
+      volumeClaimTemplates:
+      - metadata:
+          name: work
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Mi
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

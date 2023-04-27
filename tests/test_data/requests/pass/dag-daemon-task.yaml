@@ -1,0 +1,109 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: dag-daemon-task-
+    spec:
+      entrypoint: daemon-example
+      templates:
+      - dag:
+          tasks:
+          - name: influx
+            template: influxdb
+          - arguments:
+              parameters:
+              - name: cmd
+                value: curl -XPOST 'http://{{tasks.influx.ip}}:8086/query' --data-urlencode
+                  "q=CREATE DATABASE mydb"
+            depends: influx
+            name: init-database
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: for i in $(seq 1 20); do curl -XPOST 'http://{{tasks.influx.ip}}:8086/write?db=mydb'
+                  -d "cpu,host=server01,region=uswest load=$i" ; sleep .5 ; done
+            depends: init-database
+            name: producer-1
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: for i in $(seq 1 20); do curl -XPOST 'http://{{tasks.influx.ip}}:8086/write?db=mydb'
+                  -d "cpu,host=server02,region=uswest load=$((RANDOM % 100))" ; sleep
+                  .5 ; done
+            depends: init-database
+            name: producer-2
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: curl -XPOST 'http://{{tasks.influx.ip}}:8086/write?db=mydb'
+                  -d 'cpu,host=server03,region=useast load=15.4'
+            depends: init-database
+            name: producer-3
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: curl --silent -G http://{{tasks.influx.ip}}:8086/query?pretty=true
+                  --data-urlencode "db=mydb" --data-urlencode "q=SELECT * FROM cpu"
+            depends: producer-1 && producer-2 && producer-3
+            name: consumer
+            template: influxdb-client
+        name: daemon-example
+      - container:
+          image: influxdb:1.2
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8086
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+        daemon: true
+        name: influxdb
+      - container:
+          args:
+          - '{{inputs.parameters.cmd}}'
+          command:
+          - sh
+          - -c
+          image: appropriate/curl:latest
+        inputs:
+          parameters:
+          - name: cmd
+        name: influxdb-client
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

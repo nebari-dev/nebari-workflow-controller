@@ -1,0 +1,176 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        workflows.argoproj.io/description: 'This example demonstrates fibonacci sequence
+          problem using conditional parameter feature.
+
+          '
+        workflows.argoproj.io/veriiony: '>= 3.1.0'
+      name: fibonacci-
+    spec:
+      arguments:
+        parameters:
+        - name: num
+          value: '5'
+      entrypoint: main
+      templates:
+      - name: main
+        steps:
+        - - arguments:
+              parameters:
+              - name: num
+                value: '{{workflow.parameters.num}}'
+            name: fibonaccimain
+            template: fibonacci
+        - - arguments:
+              parameters:
+              - name: result
+                value: '{{steps.fibonaccimain.outputs.parameters.fib}}'
+            name: printresult
+            template: printresult
+      - inputs:
+          parameters:
+          - name: num
+        memoize:
+          cache:
+            configMap:
+              key: fibonacci-cache
+              name: fibonacci-m
+          key: '{{inputs.parameters.num}}'
+          maxAge: 120s
+        name: fibonacci
+        outputs:
+          parameters:
+          - name: fib
+            valueFrom:
+              expression: 'asInt(inputs.parameters.num) == 1? 1: asInt(inputs.parameters.num)
+                == 2? 1: steps[''fibonacci-helper''].outputs.parameters.result'
+        steps:
+        - - arguments:
+              parameters:
+              - name: num-1
+                value: '{{inputs.parameters.num}}'
+            name: fibonacci-helper
+            template: fibonaccihelper
+            when: '{{inputs.parameters.num}} != 1 && {{inputs.parameters.num}} !=
+              2'
+      - inputs:
+          parameters:
+          - name: num-1
+        name: fibonaccihelper
+        outputs:
+          parameters:
+          - name: result
+            valueFrom:
+              parameter: '{{steps.add.outputs.result}}'
+        steps:
+        - - arguments:
+              parameters:
+              - name: a
+                value: '{{inputs.parameters.num-1}}'
+              - name: op
+                value: '-'
+              - name: b
+                value: '1'
+            name: sub-1
+            template: do-math
+        - - arguments:
+              parameters:
+              - name: a
+                value: '{{inputs.parameters.num-1}}'
+              - name: op
+                value: '-'
+              - name: b
+                value: '2'
+            name: sub-2
+            template: do-math
+            when: '{{inputs.parameters.num-1}} != 1 && {{inputs.parameters.num-1}}
+              != 2'
+        - - arguments:
+              parameters:
+              - name: num
+                value: '{{steps.sub-1.outputs.result}}'
+            name: fib-sub-1
+            template: fibonacci
+        - - arguments:
+              parameters:
+              - name: num
+                value: '{{steps.sub-2.outputs.result}}'
+            name: fib-sub-2
+            template: fibonacci
+        - - arguments:
+              parameters:
+              - name: a
+                value: '{{steps.fib-sub-1.outputs.parameters.fib}}'
+              - name: op
+                value: +
+              - name: b
+                value: '{{steps.fib-sub-2.outputs.parameters.fib}}'
+            name: add
+            template: do-math
+      - name: return-1
+        script:
+          command:
+          - python
+          image: python:alpine3.6
+          source: print(1)
+      - inputs:
+          parameters:
+          - name: a
+          - name: op
+          - name: b
+        name: do-math
+        script:
+          command:
+          - python
+          image: python:alpine3.6
+          source: 'print({{inputs.parameters.a}} {{inputs.parameters.op}} {{inputs.parameters.b}})
+
+            '
+      - container:
+          args:
+          - echo {{inputs.parameters.result}}
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        inputs:
+          parameters:
+          - name: result
+        name: printresult
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

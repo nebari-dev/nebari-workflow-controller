@@ -1,0 +1,74 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: k8s-wait-wf-
+    spec:
+      entrypoint: k8s-wait-wf
+      templates:
+      - name: k8s-wait-wf
+        steps:
+        - - name: create-wf
+            template: create-wf
+        - - arguments:
+              parameters:
+              - name: wf-name
+                value: '{{steps.create-wf.outputs.parameters.wf-name}}'
+            name: wait-wf
+            template: wait-wf
+      - name: create-wf
+        outputs:
+          parameters:
+          - name: wf-name
+            valueFrom:
+              jsonPath: '{.metadata.name}'
+        resource:
+          action: create
+          manifest: "apiVersion: argoproj.io/v1alpha1\nkind: Workflow\nmetadata:\n\
+            \  generateName: sleep-\nspec:\n  entrypoint: sleep\n  templates:\n  -\
+            \ name: sleep\n    container:\n      image: alpine:latest\n      command:\
+            \ [sleep, \"20\"]\n"
+      - inputs:
+          parameters:
+          - name: wf-name
+        name: wait-wf
+        resource:
+          action: get
+          failureCondition: status.phase in (Failed, Error)
+          manifest: "apiVersion: argoproj.io/v1alpha1\nkind: Workflow\nmetadata:\n\
+            \  name: {{inputs.parameters.wf-name}}\n"
+          successCondition: status.phase == Succeeded
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

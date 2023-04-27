@@ -1,0 +1,94 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: input-output-artifact-webhdfs-
+    spec:
+      entrypoint: input-output-artifact-webhdfs-example
+      templates:
+      - container:
+          args:
+          - cat /my-artifact
+          command:
+          - sh
+          - -c
+          image: debian:latest
+        inputs:
+          artifacts:
+          - http:
+              auth:
+                oauth2:
+                  clientIDSecret:
+                    key: clientID
+                    name: oauth-sec
+                  clientSecretSecret:
+                    key: clientSecret
+                    name: oauth-sec
+                  endpointParams:
+                  - key: customkey
+                    value: customvalue
+                  scopes:
+                  - some
+                  - scopes
+                  tokenURLSecret:
+                    key: tokenURL
+                    name: oauth-sec
+              headers:
+              - name: CustomHeader
+                value: CustomValue
+              url: https://mywebhdfsprovider.com/webhdfs/v1/file.txt?op=OPEN
+            name: my-art
+            path: /my-artifact
+        name: input-output-artifact-webhdfs-example
+        outputs:
+          artifacts:
+          - http:
+              auth:
+                clientCert:
+                  clientCertSecret:
+                    key: certificate.pem
+                    name: cert-sec
+                  clientKeySecret:
+                    key: key.pem
+                    name: cert-sec
+              headers:
+              - name: CustomHeader
+                value: CustomValue
+              url: https://mywebhdfsprovider.com/webhdfs/v1/file.txt?op=CREATE&overwrite=true
+            name: my-art2
+            overwrite: true
+            path: /my-artifact
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

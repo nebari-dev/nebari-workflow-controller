@@ -1,0 +1,80 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: synchronization-tmpl-level-mutex-
+    spec:
+      entrypoint: synchronization-tmpl-level-mutex-example
+      templates:
+      - name: synchronization-tmpl-level-mutex-example
+        steps:
+        - - arguments:
+              parameters:
+              - name: seconds
+                value: '{{item}}'
+            name: synchronization-acquire-lock
+            template: acquire-lock
+            withParam: '["1","2","3","4","5"]'
+          - arguments:
+              parameters:
+              - name: seconds
+                value: '{{item}}'
+            name: synchronization-acquire-lock1
+            template: acquire-lock-1
+            withParam: '["1","2","3","4","5"]'
+      - container:
+          args:
+          - sleep 20; echo acquired lock
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        name: acquire-lock
+        synchronization:
+          mutex:
+            name: welcome
+      - container:
+          args:
+          - sleep 50; echo acquired lock
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        name: acquire-lock-1
+        synchronization:
+          mutex:
+            name: test
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

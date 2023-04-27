@@ -77,17 +77,45 @@ def base_return_response(allowed, apiVersion, request_uid, message=None):
 
 
 def find_invalid_volume_mount(
-    container, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
+    volume_mounts, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
 ):
     # verify only allowed volume_mounts were mounted
-    for volume_mount in container.get("volumeMounts", {}):
+    for volume_mount in volume_mounts:
         if volume_mount["name"] in volume_name_pvc_name_map:
             for allowed_pvc, allowed_sub_paths in allowed_pvc_sub_paths_iterable:
                 if volume_name_pvc_name_map[volume_mount["name"]] == allowed_pvc:
-                    if volume_mount.get("subPath", "") not in allowed_sub_paths:
-                        denyReason = f"Workflow attempts to mount disallowed subPath: {volume_mount}. Allowed subPaths are: {allowed_sub_paths}."
+                    if (
+                        sub_path := volume_mount.get("subPath", "")
+                    ) not in allowed_sub_paths:
+                        denyReason = f"Workflow attempts to mount disallowed subPath: {sub_path}. Allowed subPaths are: {allowed_sub_paths}."
                         logger.info(denyReason)
                         return denyReason
+
+
+def check_for_invalid_volume_mounts(
+    dict_or_list, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
+):
+    """Recursively check for invalid volume mounts"""
+    if isinstance(dict_or_list, dict):
+        for key, value in dict_or_list.items():
+            if key == "volumeMounts":
+                if denyReason := find_invalid_volume_mount(
+                    value,
+                    volume_name_pvc_name_map,
+                    allowed_pvc_sub_paths_iterable,
+                ):
+                    return denyReason
+            elif isinstance(value, (list, dict)):
+                if found_invalid_volume_mount := check_for_invalid_volume_mounts(
+                    value, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
+                ):
+                    return found_invalid_volume_mount
+    elif isinstance(dict_or_list, list):
+        for item in dict_or_list:
+            if found_invalid_volume_mount := check_for_invalid_volume_mounts(
+                item, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
+            ):
+                return found_invalid_volume_mount
 
 
 @app.post("/validate")
@@ -115,7 +143,7 @@ def admission_controller(request=Body(...)):
         )
     )
 
-    # verify only allowed volumes were mounted
+    # verify only allowed pvcs were attached as volumes
     volume_name_pvc_name_map = {}
     for volume in (
         request.get("request", {}).get("object", {}).get("spec", {}).get("volumes", {})
@@ -132,21 +160,11 @@ def admission_controller(request=Body(...)):
                     "persistentVolumeClaim"
                 ]["claimName"]
 
-    for template in request["request"]["object"]["spec"]["templates"]:
-        # verify container
-        if denyReason := find_invalid_volume_mount(
-            template["container"],
-            volume_name_pvc_name_map,
-            allowed_pvc_sub_paths_iterable,
-        ):
-            return return_response(False, message=denyReason)
-
-        # verify initContainers
-        for initContainer in template.get("initContainers", {}):
-            if denyReason := find_invalid_volume_mount(
-                initContainer, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
-            ):
-                return return_response(False, message=denyReason)
+    # verify only allowed subPaths were mounted
+    if denyReason := check_for_invalid_volume_mounts(
+        request, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
+    ):
+        return return_response(False, message=denyReason)
 
     logger.info(
         f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"

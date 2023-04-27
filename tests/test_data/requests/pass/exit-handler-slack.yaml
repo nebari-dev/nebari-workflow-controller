@@ -1,0 +1,61 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: exit-handler-slack-
+    spec:
+      entrypoint: say-hello
+      onExit: exit-handler
+      templates:
+      - container:
+          args:
+          - echo hello
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        name: say-hello
+      - container:
+          args:
+          - 'curl -X POST --data-urlencode ''payload={ "text": "{{workflow.name}}
+            finished", "blocks": [ { "type": "section", "text": { "type": "mrkdwn",
+            "text": "Workflow {{workflow.name}} {{workflow.status}}", } } ] }'' YOUR_WEBHOOK_URL_HERE'
+          command:
+          - sh
+          - -c
+          image: curlimages/curl
+        name: exit-handler
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

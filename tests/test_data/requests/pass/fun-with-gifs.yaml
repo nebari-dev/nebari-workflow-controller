@@ -1,0 +1,165 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: fun-with-gifs-
+    spec:
+      entrypoint: run-workflow
+      templates:
+      - name: run-workflow
+        steps:
+        - - name: step-1
+            template: create-output-dir
+        - - name: step-2
+            template: download-images
+        - - name: step-3
+            template: create-gif
+        - - name: step-4
+            template: black-and-white
+        - - name: step-5
+            template: combine-horizontal
+        - - name: step-6
+            template: combine-vertical
+        - - name: step-7
+            template: make-bigger
+        - - name: step-8
+            template: bundle-up
+      - container:
+          command:
+          - mkdir
+          - /mnt/data/output
+          image: alpine:3.6
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: create-output-dir
+      - container:
+          command:
+          - aws
+          - --no-sign-request
+          - s3
+          - cp
+          - --recursive
+          - s3://ax-public/cricket_gif_images
+          - /mnt/data/
+          image: mesosphere/aws-cli
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: download-images
+      - container:
+          command:
+          - convert
+          - -delay
+          - '20'
+          - -loop
+          - '0'
+          - /mnt/data/*.gif
+          - /mnt/data/output/orig.gif
+          image: v4tech/imagemagick
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: create-gif
+      - container:
+          command:
+          - convert
+          - /mnt/data/output/orig.gif
+          - -colorspace
+          - Gray
+          - /mnt/data/output/black_white.gif
+          image: v4tech/imagemagick
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: black-and-white
+      - container:
+          command:
+          - convert
+          - +append
+          - /mnt/data/*.gif
+          - /mnt/data/output/horizontal.gif
+          image: v4tech/imagemagick
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: combine-horizontal
+      - container:
+          command:
+          - convert
+          - -append
+          - /mnt/data/*.gif
+          - /mnt/data/output/vertical.gif
+          image: v4tech/imagemagick
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: combine-vertical
+      - container:
+          command:
+          - gifsicle
+          - /mnt/data/output/orig.gif
+          - --resize
+          - 1000x800
+          - -o
+          - /mnt/data/output/orig_big.gif
+          image: starefossen/gifsicle
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: make-bigger
+      - container:
+          command:
+          - ls
+          image: alpine:3.6
+          volumeMounts:
+          - mountPath: /mnt/data
+            name: workdir
+        name: bundle-up
+        outputs:
+          artifacts:
+          - name: output-gif
+            path: /mnt/data/output
+      volumeClaimTemplates:
+      - metadata:
+          name: workdir
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin
