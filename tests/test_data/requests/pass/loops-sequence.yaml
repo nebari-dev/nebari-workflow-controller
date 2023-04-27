@@ -1,0 +1,101 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: loops-sequence-
+    spec:
+      arguments:
+        parameters:
+        - name: count
+          value: '3'
+      entrypoint: loops-sequence
+      templates:
+      - name: loops-sequence
+        steps:
+        - - arguments:
+              parameters:
+              - name: msg
+                value: '{{item}}'
+            name: sequence-count
+            template: echo
+            withSequence:
+              count: '5'
+          - arguments:
+              parameters:
+              - name: msg
+                value: '{{item}}'
+            name: sequence-start-end
+            template: echo
+            withSequence:
+              end: '105'
+              start: '100'
+          - arguments:
+              parameters:
+              - name: msg
+                value: '{{item}}'
+            name: sequence-param
+            template: echo
+            withSequence:
+              count: '{{workflow.parameters.count}}'
+              start: '200'
+          - arguments:
+              parameters:
+              - name: msg
+                value: '{{item}}'
+            name: sequence-negative
+            template: echo
+            withSequence:
+              end: '0'
+              start: '5'
+          - arguments:
+              parameters:
+              - name: msg
+                value: '{{item}}'
+            name: sequence-format
+            template: echo
+            withSequence:
+              count: '5'
+              format: testuser%02X
+      - container:
+          command:
+          - echo
+          - '{{inputs.parameters.msg}}'
+          image: alpine:latest
+        inputs:
+          parameters:
+          - name: msg
+        name: echo
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

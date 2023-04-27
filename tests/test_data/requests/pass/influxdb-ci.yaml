@@ -1,0 +1,265 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: influxdb-ci-
+    spec:
+      arguments:
+        parameters:
+        - name: repo
+          value: https://github.com/influxdata/influxdb.git
+        - name: revision
+          value: '1.6'
+      entrypoint: influxdb-ci
+      templates:
+      - name: influxdb-ci
+        steps:
+        - - name: checkout
+            template: checkout
+        - - arguments:
+              artifacts:
+              - from: '{{steps.checkout.outputs.artifacts.source}}'
+                name: source
+            name: build
+            template: build
+          - arguments:
+              artifacts:
+              - from: '{{steps.checkout.outputs.artifacts.source}}'
+                name: source
+            name: test-unit
+            template: test-unit
+        - - arguments:
+              artifacts:
+              - from: '{{steps.checkout.outputs.artifacts.source}}'
+                name: source
+            name: test-cov
+            template: test-cov
+          - arguments:
+              artifacts:
+              - from: '{{steps.build.outputs.artifacts.influxd}}'
+                name: influxd
+            name: test-e2e
+            template: test-e2e
+      - container:
+          args:
+          - cd /src && git status && ls -l
+          command:
+          - /bin/sh
+          - -c
+          image: golang:1.9.2
+        inputs:
+          artifacts:
+          - git:
+              repo: '{{workflow.parameters.repo}}'
+              revision: '{{workflow.parameters.revision}}'
+            name: source
+            path: /src
+        name: checkout
+        outputs:
+          artifacts:
+          - name: source
+            path: /src
+      - container:
+          args:
+          - ' cd /go/src/github.com/influxdata/influxdb && go get github.com/golang/dep/cmd/dep
+            && dep ensure -vendor-only && go install -v ./... '
+          command:
+          - /bin/sh
+          - -c
+          image: golang:1.9.2
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1024Mi
+        inputs:
+          artifacts:
+          - name: source
+            path: /go/src/github.com/influxdata/influxdb
+        name: build
+        outputs:
+          artifacts:
+          - name: influxd
+            path: /go/bin
+      - container:
+          args:
+          - ' cd /go/src/github.com/influxdata/influxdb && go get github.com/golang/dep/cmd/dep
+            && dep ensure -vendor-only && go test -parallel=1 ./... '
+          command:
+          - /bin/sh
+          - -c
+          image: golang:1.9.2
+        inputs:
+          artifacts:
+          - name: source
+            path: /go/src/github.com/influxdata/influxdb
+        name: test-unit
+      - inputs:
+          artifacts:
+          - name: source
+        name: test-cov
+        steps:
+        - - arguments:
+              artifacts:
+              - from: '{{inputs.artifacts.source}}'
+                name: source
+              parameters:
+              - name: package
+                value: query
+            name: test-cov-query
+            template: test-cov-base
+          - arguments:
+              artifacts:
+              - from: '{{inputs.artifacts.source}}'
+                name: source
+              parameters:
+              - name: package
+                value: tsdb/engine/tsm1
+            name: test-cov-tsm1
+            template: test-cov-base
+      - container:
+          args:
+          - ' cd /go/src/github.com/influxdata/influxdb && go get github.com/golang/dep/cmd/dep
+            && dep ensure -vendor-only && go test -v -coverprofile /tmp/cov.out ./{{inputs.parameters.package}}
+            && go tool cover -html=/tmp/cov.out -o /tmp/index.html '
+          command:
+          - /bin/sh
+          - -c
+          image: golang:1.9.2
+          resources:
+            requests:
+              cpu: 200m
+              memory: 4096Mi
+        inputs:
+          artifacts:
+          - name: source
+            path: /go/src/github.com/influxdata/influxdb
+          parameters:
+          - name: package
+        name: test-cov-base
+        outputs:
+          artifacts:
+          - name: covreport
+            path: /tmp/index.html
+      - inputs:
+          artifacts:
+          - name: influxd
+        name: test-e2e
+        steps:
+        - - arguments:
+              artifacts:
+              - from: '{{inputs.artifacts.influxd}}'
+                name: influxd
+            name: influxdb-server
+            template: influxdb-server
+        - - arguments:
+              parameters:
+              - name: cmd
+                value: curl -XPOST 'http://{{steps.influxdb-server.ip}}:8086/query'
+                  --data-urlencode "q=CREATE DATABASE mydb"
+            name: initdb
+            template: influxdb-client
+        - - arguments:
+              parameters:
+              - name: cmd
+                value: for i in $(seq 1 20); do curl -XPOST 'http://{{steps.influxdb-server.ip}}:8086/write?db=mydb'
+                  -d "cpu,host=server01,region=uswest load=$i" ; sleep .5 ; done
+            name: producer1
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: for i in $(seq 1 20); do curl -XPOST 'http://{{steps.influxdb-server.ip}}:8086/write?db=mydb'
+                  -d "cpu,host=server02,region=uswest load=$((RANDOM % 100))" ; sleep
+                  .5 ; done
+            name: producer2
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: curl -XPOST 'http://{{steps.influxdb-server.ip}}:8086/write?db=mydb'
+                  -d 'cpu,host=server03,region=useast load=15.4'
+            name: producer3
+            template: influxdb-client
+          - arguments:
+              parameters:
+              - name: cmd
+                value: curl --silent -G http://{{steps.influxdb-server.ip}}:8086/query?pretty=true
+                  --data-urlencode "db=mydb" --data-urlencode "q=SELECT * FROM cpu"
+            name: consumer
+            template: influxdb-client
+      - container:
+          args:
+          - chmod +x /app/influxd && /app/influxd
+          command:
+          - /bin/sh
+          - -c
+          image: debian:9.4
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8086
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+        daemon: true
+        inputs:
+          artifacts:
+          - name: influxd
+            path: /app
+        name: influxdb-server
+        outputs:
+          artifacts:
+          - name: data
+            path: /var/lib/influxdb/data
+      - container:
+          args:
+          - '{{inputs.parameters.cmd}}'
+          command:
+          - /bin/sh
+          - -c
+          image: appropriate/curl:latest
+          resources:
+            requests:
+              cpu: 100m
+              memory: 32Mi
+        inputs:
+          parameters:
+          - name: cmd
+        name: influxdb-client
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

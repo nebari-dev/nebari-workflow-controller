@@ -1,0 +1,96 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        workflows.argoproj.io/description: 'This workflow demonstrates using a data
+          template to list in an S3 bucket
+
+          and then process those log files.
+
+          '
+        workflows.argoproj.io/version: '>= 3.1.0'
+      name: data-transformations-
+    spec:
+      entrypoint: data-transformations
+      templates:
+      - name: data-transformations
+        steps:
+        - - name: list-log-files
+            template: list-log-files
+        - - arguments:
+              artifacts:
+              - name: file
+                s3:
+                  key: '{{item}}'
+              parameters:
+              - name: file-name
+                value: '{{item}}'
+            name: process-logs
+            template: process-logs
+            withParam: '{{steps.list-log-files.outputs.result}}'
+      - data:
+          source:
+            artifactPaths:
+              name: test-bucket
+              s3:
+                bucket: my-bucket
+          transformation:
+          - expression: filter(data, {# endsWith "main.log"})
+        name: list-log-files
+        outputs:
+          artifacts:
+          - name: file
+            path: /file
+      - container:
+          args:
+          - 'echo {{inputs.parameters.file-name}}
+
+            head /file
+
+            '
+          command:
+          - sh
+          - -c
+          image: argoproj/argosay:v2
+        inputs:
+          artifacts:
+          - name: file
+            path: /file
+          parameters:
+          - name: file-name
+        name: process-logs
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

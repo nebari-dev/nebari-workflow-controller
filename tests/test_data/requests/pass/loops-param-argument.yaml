@@ -1,0 +1,73 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: loops-param-arg-
+    spec:
+      arguments:
+        parameters:
+        - name: os-list
+          value: "[\n  { \"image\": \"debian\", \"tag\": \"9.1\" },\n  { \"image\"\
+            : \"debian\", \"tag\": \"8.9\" },\n  { \"image\": \"alpine\", \"tag\"\
+            : \"3.6\" },\n  { \"image\": \"ubuntu\", \"tag\": \"17.10\" }\n]\n"
+      entrypoint: loop-param-arg-example
+      templates:
+      - inputs:
+          parameters:
+          - name: os-list
+        name: loop-param-arg-example
+        steps:
+        - - arguments:
+              parameters:
+              - name: image
+                value: '{{item.image}}'
+              - name: tag
+                value: '{{item.tag}}'
+            name: test-linux
+            template: cat-os-release
+            withParam: '{{inputs.parameters.os-list}}'
+      - container:
+          args:
+          - /etc/os-release
+          command:
+          - cat
+          image: '{{inputs.parameters.image}}:{{inputs.parameters.tag}}'
+        inputs:
+          parameters:
+          - name: image
+          - name: tag
+        name: cat-os-release
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

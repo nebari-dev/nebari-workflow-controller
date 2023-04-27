@@ -1,0 +1,68 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: hello-hybrid-
+    spec:
+      entrypoint: mytemplate
+      templates:
+      - name: mytemplate
+        steps:
+        - - name: step1
+            template: hello-win
+        - - name: step2
+            template: hello-linux
+      - container:
+          args:
+          - echo
+          - Hello from Windows Container!
+          command:
+          - cmd
+          - /c
+          image: mcr.microsoft.com/windows/nanoserver:1809
+        name: hello-win
+        nodeSelector:
+          kubernetes.io/os: windows
+      - container:
+          args:
+          - Hello from Linux Container!
+          command:
+          - echo
+          image: alpine
+        name: hello-linux
+        nodeSelector:
+          kubernetes.io/os: linux
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

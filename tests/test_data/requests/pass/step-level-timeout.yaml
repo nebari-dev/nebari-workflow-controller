@@ -1,0 +1,72 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: steps-tmpl-timeout-
+    spec:
+      entrypoint: hello-hello-hello
+      templates:
+      - name: hello-hello-hello
+        steps:
+        - - arguments:
+              parameters:
+              - name: timeout
+                value: 10s
+            continueOn:
+              error: true
+            name: hello1
+            template: whalesay
+          - arguments:
+              parameters:
+              - name: timeout
+                value: 10s
+            continueOn:
+              failed: true
+            name: hello2
+            template: whalesay
+      - container:
+          args:
+          - sleep 30s
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        inputs:
+          parameters:
+          - name: timeout
+        name: whalesay
+        timeout: '{{inputs.parameters.timeout}}'
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

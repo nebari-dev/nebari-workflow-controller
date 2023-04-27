@@ -1,0 +1,75 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        workflows.argoproj.io/description: 'Template defaults will provide the fixability
+          to configure the defaults values for all templates in workflow.
+
+          Individual template can be overide default values.
+
+          '
+        workflows.argoproj.io/version: '>= 3.1.0'
+      name: template-defaults-
+    spec:
+      entrypoint: main
+      templateDefaults:
+        retryStrategy:
+          limit: '2'
+        timeout: 30s
+      templates:
+      - name: main
+        steps:
+        - - name: retry-backoff
+            template: retry-backoff
+        - - name: whalesay
+            template: whalesay
+      - container:
+          args:
+          - hello world
+          command:
+          - cowsay
+          image: argoproj/argosay:v2
+        name: whalesay
+      - container:
+          args:
+          - import random; import sys; exit_code = random.choice([0, 1, 1]); sys.exit(exit_code)
+          command:
+          - python
+          - -c
+          image: python:alpine3.6
+        name: retry-backoff
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

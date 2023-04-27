@@ -1,0 +1,60 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: output-artifact-gcs-
+    spec:
+      entrypoint: whalesay
+      templates:
+      - container:
+          args:
+          - cowsay hello world | tee /tmp/hello_world.txt
+          command:
+          - sh
+          - -c
+          image: docker/whalesay:latest
+        name: whalesay
+        outputs:
+          artifacts:
+          - gcs:
+              bucket: my-bucket
+              key: path/in/bucket/hello_world.txt.tgz
+              serviceAccountKeySecret:
+                key: serviceAccountKey
+                name: my-gcs-credentials
+            name: message
+            path: /tmp
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

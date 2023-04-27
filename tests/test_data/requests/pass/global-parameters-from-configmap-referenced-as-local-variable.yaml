@@ -1,0 +1,70 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        workflows.argoproj.io/description: 'This example demonstrates global parameter
+          from configmap can be referenced as template local variable.
+
+          Note that the "simple-parameters" ConfigMap (defined in examples/configmaps/simple-parameters-configmap.yaml)
+
+          needs to be created first before submitting this workflow.
+
+          '
+      labels:
+        workflows.argoproj.io/test: 'true'
+      name: global-parameter-from-configmap-referenced-as-local-variable-
+    spec:
+      arguments:
+        parameters:
+        - name: message
+          valueFrom:
+            configMapKeyRef:
+              key: msg
+              name: simple-parameters
+      entrypoint: whalesay
+      serviceAccountName: argo
+      templates:
+      - container:
+          args:
+          - echo
+          - '{{inputs.parameters.message}}'
+          image: argoproj/argosay:v2
+        inputs:
+          parameters:
+          - name: message
+        name: whalesay
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

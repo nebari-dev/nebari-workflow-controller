@@ -78,7 +78,7 @@ request:
                     -   mountPath: /home/conda/global
                         name: conda-store
                         subPath: global
-                    -   mountPath: /home/conda/super-admin
+                    -   mountPath: /home/conda/super-admin  # disallowed
                         name: conda-store
                         subPath: super-admin
                     -   mountPath: /home/conda/analyst

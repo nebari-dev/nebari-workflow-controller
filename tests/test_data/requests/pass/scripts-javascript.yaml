@@ -1,0 +1,73 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: scripts-javascript-
+    spec:
+      entrypoint: javascript-script-example
+      templates:
+      - name: javascript-script-example
+        steps:
+        - - name: generate
+            template: gen-random-int
+        - - arguments:
+              parameters:
+              - name: message
+                value: '{{steps.generate.outputs.result}}'
+            name: print
+            template: print-message
+      - name: gen-random-int
+        script:
+          command:
+          - node
+          image: node:9.1-alpine
+          source: 'var rand = Math.floor(Math.random() * 100);
+
+            console.log(rand);
+
+            '
+      - container:
+          args:
+          - 'echo result was: {{inputs.parameters.message}}'
+          command:
+          - sh
+          - -c
+          image: alpine:latest
+        inputs:
+          parameters:
+          - name: message
+        name: print-message
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin

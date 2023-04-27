@@ -1,0 +1,84 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        workflows.argoproj.io/description: 'Exemplifies usage of successCondition
+          in HTTP template (available since v3.3)
+
+          '
+      labels:
+        workflows.argoproj.io/test: 'true'
+      name: http-template-condition-
+    spec:
+      entrypoint: main
+      templates:
+      - name: main
+        steps:
+        - - arguments:
+              parameters:
+              - name: url
+                value: http://httpstat.us/201
+            name: http-status-is-201-succeeds
+            template: http-status-is-201
+          - arguments:
+              parameters:
+              - name: url
+                value: https://google.com
+            name: http-body-contains-google-succeeds
+            template: http-body-contains-google
+      - http:
+          successCondition: response.statusCode == 201
+          url: '{{inputs.parameters.url}}'
+        inputs:
+          parameters:
+          - name: url
+        name: http-status-is-201
+      - http:
+          successCondition: response.body contains "google"
+          url: '{{inputs.parameters.url}}'
+        inputs:
+          parameters:
+          - name: url
+        name: http-body-contains-google
+      - http:
+          successCondition: response.headers["Server"][0] == "cloudflare"
+          url: '{{inputs.parameters.url}}'
+        inputs:
+          parameters:
+          - name: url
+        name: http-headers-contains-cloudflare
+  operation: CREATE
+  options:
+    apiVersion: meta.k8s.io/v1
+    kind: CreateOptions
+  requestKind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  requestResource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  resource:
+    group: argoproj.io
+    resource: workflows
+    version: v1alpha1
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin
