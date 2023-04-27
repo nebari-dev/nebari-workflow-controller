@@ -1,13 +1,9 @@
-import base64
-import copy
 import logging
 import os
 from functools import partial
 
-import jsonpatch
 from fastapi import Body, FastAPI
 from keycloak import KeycloakAdmin
-from kubernetes import client, config
 
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
@@ -98,7 +94,7 @@ def find_invalid_volume_mount(
 def admission_controller(request=Body(...)):
     keycloak_user = get_keycloak_user_info(request)
 
-    validating_return_response = partial(
+    return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
         request_uid=request["request"]["uid"],
@@ -130,7 +126,7 @@ def admission_controller(request=Body(...)):
                     f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}"
                 )
                 denyReason = f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}. Allowed PVCs are: {allowed_pvcs}."
-                return validating_return_response(False, message=denyReason)
+                return return_response(False, message=denyReason)
             else:
                 volume_name_pvc_name_map[volume["name"]] = volume[
                     "persistentVolumeClaim"
@@ -143,95 +139,16 @@ def admission_controller(request=Body(...)):
             volume_name_pvc_name_map,
             allowed_pvc_sub_paths_iterable,
         ):
-            return validating_return_response(False, message=denyReason)
+            return return_response(False, message=denyReason)
 
         # verify initContainers
         for initContainer in template.get("initContainers", {}):
             if denyReason := find_invalid_volume_mount(
                 initContainer, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
             ):
-                return validating_return_response(False, message=denyReason)
+                return return_response(False, message=denyReason)
 
     logger.info(
         f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
     )
-    return validating_return_response(True)
-
-
-def get_user_pod_spec(keycloak_user):
-    config.incluster_config.load_incluster_config()
-    k8s_client = client.CoreV1Api()
-
-    # TODO: Replace dev with an env variable
-    jupyter_pod_list = k8s_client.list_namespaced_pod(
-        "dev", label_selector=f"hub.jupyter.org/username={keycloak_user.username}"
-    ).items
-
-    if len(jupyter_pod_list) > 1:
-        logger.warning(
-            f"More than one pod found for user {keycloak_user.username}. Using first pod found."
-        )
-        # TODO: verify how this will work with CDSDashboards
-
-    # throw error if no pods found
-    if len(jupyter_pod_list) == 0:
-        raise Exception(f"No pod found for user {keycloak_user.username}.")
-
-    jupyter_pod_spec = jupyter_pod_list[0]
-    return jupyter_pod_spec
-
-
-keep_portions = [
-    "spec.containers[0].image",
-    "spec.containers[0].image.lifecycle",
-    "spec.containers[0].name",
-    "spec.containers[0].resources",
-    "spec.containers[0].securityContext",
-    "spec.containers[0].volume_mounts",
-    "spec.init_containers",
-    "spec.security_context",
-    "spec.tolerations",
-    "spec.volumes",
-]
-
-mutate_label = "jupyter-flow"
-
-
-@app.post("/mutate")
-def mutate(request=Body(...)):
-    print(request)
-    spec = request["request"]["object"]
-    if spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false") != "false":
-        modified_spec = copy.deepcopy(spec)
-        keycloak_user = get_keycloak_user_info(request)
-        get_user_pod_spec(keycloak_user)
-        breakpoint()
-        # LEFT OFF
-        patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
-        return {
-            "response": {
-                "allowed": True,
-                "uid": request["request"]["uid"],
-                "patch": base64.b64encode(str(patch).encode()).decode(),
-                "patchtype": "JSONPatch",
-            }
-        }
-    else:
-        return {
-            "apiVersion": request["apiVersion"],
-            "kind": "AdmissionReview",
-            "response": {
-                "allowed": True,
-                "uid": request["request"]["uid"],
-            },
-        }
-
-
-"""
-conda init && bash
-conda activate default
-pip install "kubernetes==26.1.0"
-cd /opt/conda/envs/default/lib/python3.10/site-packages/nebari_workflow_controller/
-
-python -m nebari_workflow_controller
-"""
+    return return_response(True)
