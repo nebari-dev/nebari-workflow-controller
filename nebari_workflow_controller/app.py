@@ -1,9 +1,13 @@
+import base64
+import copy
 import logging
 import os
 from functools import partial
 
+import jsonpatch
 from fastapi import Body, FastAPI
 from keycloak import KeycloakAdmin
+from kubernetes import client, config
 
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
@@ -170,3 +174,82 @@ def admission_controller(request=Body(...)):
         f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
     )
     return return_response(True)
+
+
+def get_user_pod_spec(keycloak_user):
+    config.incluster_config.load_incluster_config()
+    k8s_client = client.CoreV1Api()
+
+    # TODO: Replace dev with an env variable
+    jupyter_pod_list = k8s_client.list_namespaced_pod(
+        "dev", label_selector=f"hub.jupyter.org/username={keycloak_user.username}"
+    ).items
+
+    if len(jupyter_pod_list) > 1:
+        logger.warning(
+            f"More than one pod found for user {keycloak_user.username}. Using first pod found."
+        )
+        # TODO: verify how this will work with CDSDashboards
+
+    # throw error if no pods found
+    if len(jupyter_pod_list) == 0:
+        raise Exception(f"No pod found for user {keycloak_user.username}.")
+
+    jupyter_pod_spec = jupyter_pod_list[0]
+    return jupyter_pod_spec
+
+
+keep_portions = [
+    "spec.containers[0].image",
+    "spec.containers[0].image.lifecycle",
+    "spec.containers[0].name",
+    "spec.containers[0].resources",
+    "spec.containers[0].securityContext",
+    "spec.containers[0].volume_mounts",
+    "spec.init_containers",
+    "spec.security_context",
+    "spec.tolerations",
+    "spec.volumes",
+]
+
+mutate_label = "jupyter-flow"
+
+
+@app.post("/mutate")
+def mutate(request=Body(...)):
+    print(request)
+    spec = request["request"]["object"]
+    if spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false") != "false":
+        modified_spec = copy.deepcopy(spec)
+        keycloak_user = get_keycloak_user_info(request)
+        get_user_pod_spec(keycloak_user)
+        breakpoint()
+        # LEFT OFF
+        patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
+        return {
+            "response": {
+                "allowed": True,
+                "uid": request["request"]["uid"],
+                "patch": base64.b64encode(str(patch).encode()).decode(),
+                "patchtype": "JSONPatch",
+            }
+        }
+    else:
+        return {
+            "apiVersion": request["apiVersion"],
+            "kind": "AdmissionReview",
+            "response": {
+                "allowed": True,
+                "uid": request["request"]["uid"],
+            },
+        }
+
+
+"""
+conda init && bash
+conda activate default
+pip install "kubernetes==26.1.0"
+cd /opt/conda/envs/default/lib/python3.10/site-packages/nebari_workflow_controller/
+
+python -m nebari_workflow_controller
+"""
