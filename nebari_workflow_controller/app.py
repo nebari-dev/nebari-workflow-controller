@@ -48,6 +48,7 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
     )
 
     if sent_by_argo(request):
+        # TODO: handle case if resubmitted from workflow
         keycloak_uid = request["request"]["object"]["metadata"]["labels"][
             "workflows.argoproj.io/creator"
         ]
@@ -58,6 +59,7 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
         keycloak_uid = kcadm.get_user_id(keycloak_username)
 
     groups = kcadm.get_user_groups(keycloak_uid)
+
     keycloak_user = KeycloakUser(
         username=keycloak_username,
         id=keycloak_uid,
@@ -96,34 +98,8 @@ def find_invalid_volume_mount(
                         return denyReason
 
 
-def check_for_invalid_volume_mounts(
-    dict_or_list, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
-):
-    """Recursively check for invalid volume mounts"""
-    if isinstance(dict_or_list, dict):
-        for key, value in dict_or_list.items():
-            if key == "volumeMounts":
-                if denyReason := find_invalid_volume_mount(
-                    value,
-                    volume_name_pvc_name_map,
-                    allowed_pvc_sub_paths_iterable,
-                ):
-                    return denyReason
-            elif isinstance(value, (list, dict)):
-                if found_invalid_volume_mount := check_for_invalid_volume_mounts(
-                    value, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
-                ):
-                    return found_invalid_volume_mount
-    elif isinstance(dict_or_list, list):
-        for item in dict_or_list:
-            if found_invalid_volume_mount := check_for_invalid_volume_mounts(
-                item, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
-            ):
-                return found_invalid_volume_mount
-
-
 @app.post("/validate")
-def admission_controller(request=Body(...)):
+def validate(request=Body(...)):
     keycloak_user = get_keycloak_user_info(request)
 
     return_response = partial(
@@ -164,15 +140,31 @@ def admission_controller(request=Body(...)):
                     "persistentVolumeClaim"
                 ]["claimName"]
 
-    # verify only allowed subPaths were mounted
-    if denyReason := check_for_invalid_volume_mounts(
-        request, volume_name_pvc_name_map, allowed_pvc_sub_paths_iterable
-    ):
-        return return_response(False, message=denyReason)
+    for template in request["request"]["object"]["spec"]["templates"]:
+        # check if any container or initContainer mounts disallowed subPath
+        if "volumeMounts" in template.get("container", {}):
+            if denyReason := find_invalid_volume_mount(
+                template["container"]["volumeMounts"],
+                volume_name_pvc_name_map,
+                allowed_pvc_sub_paths_iterable,
+            ):
+                return return_response(False, message=denyReason)
 
-    logger.info(
-        f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
-    )
+        for initContainer in template.get("initContainers", []):
+            if "volumeMounts" in initContainer:
+                if denyReason := find_invalid_volume_mount(
+                    initContainer["volumeMounts"],
+                    volume_name_pvc_name_map,
+                    allowed_pvc_sub_paths_iterable,
+                ):
+                    return return_response(False, message=denyReason)
+
+    if request["request"]["object"]["metadata"].get("name"):
+        log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
+    else:
+        log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['generateName']}"
+    logger.info(log_msg)
+
     return return_response(True)
 
 
@@ -199,40 +191,125 @@ def get_user_pod_spec(keycloak_user):
     return jupyter_pod_spec
 
 
-keep_portions = [
-    "spec.containers[0].image",
-    "spec.containers[0].image.lifecycle",
-    "spec.containers[0].name",
-    "spec.containers[0].resources",
-    "spec.containers[0].securityContext",
-    "spec.containers[0].volume_mounts",
-    "spec.init_containers",
-    "spec.security_context",
-    "spec.tolerations",
-    "spec.volumes",
-]
-
-mutate_label = "jupyter-flow"
+mutate_label = "jupyterflow-override"
 
 
 @app.post("/mutate")
 def mutate(request=Body(...)):
-    print(request)
     spec = request["request"]["object"]
     if spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false") != "false":
         modified_spec = copy.deepcopy(spec)
         keycloak_user = get_keycloak_user_info(request)
-        get_user_pod_spec(keycloak_user)
-        breakpoint()
-        # LEFT OFF
+        user_pod_spec = get_user_pod_spec(keycloak_user)
+
+        api = client.ApiClient()
+
+        container_keep_portions = [
+            (user_pod_spec.spec.containers[0].image, "image"),
+            (
+                [
+                    api.sanitize_for_serialization(var)
+                    for var in user_pod_spec.spec.containers[0].env
+                ],
+                "env",
+            ),
+            (
+                api.sanitize_for_serialization(
+                    user_pod_spec.spec.containers[0].lifecycle
+                ),
+                "lifecycle",
+            ),
+            (user_pod_spec.spec.containers[0].name, "name"),
+            (
+                api.sanitize_for_serialization(
+                    user_pod_spec.spec.containers[0].security_context
+                ),
+                "securityContext",
+            ),
+            (
+                [
+                    api.sanitize_for_serialization(v)
+                    for v in user_pod_spec.spec.containers[0].volume_mounts
+                ],
+                "volumeMounts",
+            ),
+            (user_pod_spec.spec.containers[0].working_dir, "workingDir"),
+        ]
+        spec_keep_portions = [
+            (
+                [
+                    api.sanitize_for_serialization(iC)
+                    for iC in user_pod_spec.spec.init_containers
+                ],
+                "initContainers",
+            ),
+            (
+                api.sanitize_for_serialization(user_pod_spec.spec.security_context),
+                "securityContext",
+            ),
+            (
+                api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
+                "nodeSelector",
+            ),
+            (
+                [
+                    api.sanitize_for_serialization(t)
+                    for t in user_pod_spec.spec.tolerations
+                ],
+                "tolerations",
+            ),
+            (
+                [
+                    api.sanitize_for_serialization(v)
+                    for v in user_pod_spec.spec.volumes
+                    if not v.name.startswith("kupe-api-access-")
+                ],
+                "volumes",
+            ),
+        ]
+
+        for template in modified_spec["spec"]["templates"]:
+            for value, key in container_keep_portions:
+                if isinstance(value, dict):
+                    if key in template.get("container", {}):
+                        template["container"][key] = {
+                            **template["container"][key],
+                            **value,
+                        }
+                    else:
+                        template["container"][key] = value
+                elif isinstance(value, list):
+                    if key in template.get("container", {}):
+                        template["container"][key].append(value)
+                    else:
+                        template["container"][key] = value
+                else:
+                    template["container"][key] = value
+
+            for value, key in spec_keep_portions:
+                if isinstance(value, dict):
+                    if key in template:
+                        template[key] = {**template[key], **value}
+                    else:
+                        template[key] = value
+                elif isinstance(value, list):
+                    if key in template:
+                        template[key].append(value)
+                    else:
+                        template[key] = value
+                else:
+                    template[key] = value
+
         patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
         return {
+            "apiVersion": request["apiVersion"],
+            "kind": "AdmissionReview",
             "response": {
                 "allowed": True,
                 "uid": request["request"]["uid"],
                 "patch": base64.b64encode(str(patch).encode()).decode(),
-                "patchtype": "JSONPatch",
-            }
+                "patchType": "JSONPatch",
+            },
         }
     else:
         return {
@@ -243,13 +320,3 @@ def mutate(request=Body(...)):
                 "uid": request["request"]["uid"],
             },
         }
-
-
-"""
-conda init && bash
-conda activate default
-pip install "kubernetes==26.1.0"
-cd /opt/conda/envs/default/lib/python3.10/site-packages/nebari_workflow_controller/
-
-python -m nebari_workflow_controller
-"""
