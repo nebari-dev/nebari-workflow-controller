@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-allowed_pvcs = {"jupyterhub-dev-share", "conda-store-dev-share"}
+jupythub_share_name = f"jupyterhub-{os.environ['NAMESPACE']}-share"
+conda_store_share_name = f"conda-store-{os.environ['NAMESPACE']}-share"
+allowed_pvcs = {jupythub_share_name, conda_store_share_name}
 conda_store_global_namespaces = ["global", "nebari-git"]
 
 
@@ -118,7 +120,7 @@ def validate(request=Body(...)):
     )
     allowed_pvc_sub_paths_iterable = tuple(
         zip(
-            ("jupyterhub-dev-share", "conda-store-dev-share"),
+            (jupythub_share_name, conda_store_share_name),
             (shared_filesystem_sub_paths, conda_store_sub_paths),
         )
     )
@@ -172,16 +174,16 @@ def get_user_pod_spec(keycloak_user):
     config.incluster_config.load_incluster_config()
     k8s_client = client.CoreV1Api()
 
-    # TODO: Replace dev with an env variable
     jupyter_pod_list = k8s_client.list_namespaced_pod(
-        "dev", label_selector=f"hub.jupyter.org/username={keycloak_user.username}"
+        os.environ["NAMESPACE"],
+        label_selector=f"hub.jupyter.org/username={keycloak_user.username}",
     ).items
 
     if len(jupyter_pod_list) > 1:
         logger.warning(
-            f"More than one pod found for user {keycloak_user.username}. Using first pod found."
+            f"More than one pod found for user {keycloak_user.username}. Using last pod started."
         )
-        # TODO: verify how this will work with CDSDashboards
+        jupyter_pod_list.sort(key=lambda pod: pod.status.start_time, reverse=True)
 
     # throw error if no pods found
     if len(jupyter_pod_list) == 0:
