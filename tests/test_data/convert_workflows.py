@@ -40,7 +40,7 @@ request:
 """
 
 new_request = yaml.load(preamble, Loader=yaml.FullLoader)
-files = Path("./requests/pass").glob("*.yaml")
+files = Path("./requests/valid").glob("*.yaml")
 
 for request_file in files:
     with open(request_file, "r") as f:

@@ -1,0 +1,422 @@
+{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "request":
+    {
+      "uid": "d4482412-25df-4135-9cb0-eb245e4841d2",
+      "kind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "resource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "requestKind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "requestResource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "namespace": "dev",
+      "operation": "CREATE",
+      "userInfo":
+        {
+          "username": "system:serviceaccount:dev:argo-admin",
+          "uid": "888697ff-9f8b-44a9-ab21-323b77224998",
+          "groups":
+            [
+              "system:serviceaccounts",
+              "system:serviceaccounts:dev",
+              "system:authenticated",
+            ],
+        },
+      "object":
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Workflow",
+          "metadata":
+            {
+              "annotations": { "workflows.argoproj.io/pod-name-format": "v2" },
+              "creationTimestamp": None,
+              "generateName": "sparkly-bearyman-",
+              "labels":
+                {
+                  "example": "true",
+                  "jupyter-flow": "yes",
+                  "workflows.argoproj.io/creator-email": "ad.at.ad.com",
+                  "workflows.argoproj.io/creator-preferred-username": "ad",
+                  "workflows.argoproj.io/resubmitted-from-workflow": "sparkly-bearyman",
+                },
+              "managedFields":
+                [
+                  {
+                    "apiVersion": "argoproj.io/v1alpha1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1":
+                      {
+                        "f:metadata":
+                          {
+                            "f:annotations":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/pod-name-format": {},
+                              },
+                            "f:generateName": {},
+                            "f:labels":
+                              {
+                                ".": {},
+                                "f:example": {},
+                                "f:jupyter-flow": {},
+                                "f:workflows.argoproj.io/creator-email": {},
+                                ? "f:workflows.argoproj.io/creator-preferred-username"
+                                : {},
+                                ? "f:workflows.argoproj.io/resubmitted-from-workflow"
+                                : {},
+                              },
+                          },
+                        "f:spec": {},
+                        "f:status": {},
+                      },
+                    "manager": "argo",
+                    "operation": "Update",
+                    "time": "2023-04-28T16:57:15Z",
+                  },
+                ],
+              "namespace": "dev",
+            },
+          "spec":
+            {
+              "arguments":
+                {
+                  "parameters": [{ "name": "message", "value": "hello argo" }],
+                },
+              "entrypoint": "argosay",
+              "podGC": { "strategy": "OnPodCompletion" },
+              "templates":
+                [
+                  {
+                    "container":
+                      {
+                        "args": ["echo", "{{inputs.parameters.message}}"],
+                        "command": ["/argosay"],
+                        "image": "quay.io/nebari/nebari-jupyterlab:2023.1.1",
+                        "name": "notebook",
+                        "resources": {},
+                        "securityContext":
+                          { "runAsGroup": 100, "runAsUser": 1000 },
+                        "volumeMounts":
+                          [
+                            {
+                              "mountPath": "/home/ad",
+                              "name": "home",
+                              "subPath": "home/ad",
+                            },
+                            {
+                              "mountPath": "/shared/admin",
+                              "name": "home",
+                              "subPath": "shared/admin",
+                            },
+                            {
+                              "mountPath": "/shared/analyst",
+                              "name": "home",
+                              "subPath": "shared/analyst",
+                            },
+                            {
+                              "mountPath": "/home/conda/ad",
+                              "name": "conda-store",
+                              "subPath": "ad",
+                            },
+                            {
+                              "mountPath": "/home/conda/nebari-git",
+                              "name": "conda-store",
+                              "subPath": "nebari-git",
+                            },
+                            {
+                              "mountPath": "/home/conda/global",
+                              "name": "conda-store",
+                              "subPath": "global",
+                            },
+                            {
+                              "mountPath": "/home/conda/admin",
+                              "name": "conda-store",
+                              "subPath": "admin",
+                            },
+                            {
+                              "mountPath": "/home/conda/analyst",
+                              "name": "conda-store",
+                              "subPath": "analyst",
+                            },
+                            { "mountPath": "/etc/dask", "name": "dask-etc" },
+                            {
+                              "mountPath": "/etc/ipython",
+                              "name": "etc-ipython",
+                            },
+                            {
+                              "mountPath": "/etc/jupyter",
+                              "name": "etc-jupyter",
+                            },
+                            {
+                              "mountPath": "/opt/conda/envs/default/share/jupyter/lab/settings",
+                              "name": "jupyterlab-settings",
+                            },
+                            {
+                              "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                              "name": "kube-api-access-9wqhs",
+                              "readOnly": True,
+                            },
+                          ],
+                      },
+                    "initContainers":
+                      [
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/home/ad && chmod 777 /mnt/home/ad && cp -r /etc/skel/. /mnt/home/ad",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-home-mount",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/home/ad",
+                                "name": "home",
+                                "subPath": "home/ad",
+                              },
+                              { "mountPath": "/etc/skel", "name": "skel" },
+                              {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-9wqhs",
+                                "readOnly": True,
+                              },
+                            ],
+                        },
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/shared/admin && chmod 777 /mnt/shared/admin && mkdir -p /mnt/shared/analyst && chmod 777 /mnt/shared/analyst",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-shared-mounts",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/shared/admin",
+                                "name": "home",
+                                "subPath": "shared/admin",
+                              },
+                              {
+                                "mountPath": "/mnt/shared/analyst",
+                                "name": "home",
+                                "subPath": "shared/analyst",
+                              },
+                              {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-9wqhs",
+                                "readOnly": True,
+                              },
+                            ],
+                        },
+                        {
+                          "command":
+                            [
+                              "sh",
+                              "-c",
+                              "mkdir -p /mnt/ad && chmod 755 /mnt/ad && mkdir -p /mnt/nebari-git && chmod 755 /mnt/nebari-git && mkdir -p /mnt/global && chmod 755 /mnt/global && mkdir -p /mnt/admin && chmod 755 /mnt/admin && mkdir -p /mnt/analyst && chmod 755 /mnt/analyst",
+                            ],
+                          "image": "busybox:1.31",
+                          "imagePullPolicy": "IfNotPresent",
+                          "name": "initialize-conda-store-mounts",
+                          "resources": {},
+                          "securityContext": { "runAsUser": 0 },
+                          "terminationMessagePath": "/dev/termination-log",
+                          "terminationMessagePolicy": "File",
+                          "volumeMounts":
+                            [
+                              {
+                                "mountPath": "/mnt/ad",
+                                "name": "conda-store",
+                                "subPath": "ad",
+                              },
+                              {
+                                "mountPath": "/mnt/nebari-git",
+                                "name": "conda-store",
+                                "subPath": "nebari-git",
+                              },
+                              {
+                                "mountPath": "/mnt/global",
+                                "name": "conda-store",
+                                "subPath": "global",
+                              },
+                              {
+                                "mountPath": "/mnt/admin",
+                                "name": "conda-store",
+                                "subPath": "admin",
+                              },
+                              {
+                                "mountPath": "/mnt/analyst",
+                                "name": "conda-store",
+                                "subPath": "analyst",
+                              },
+                              {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-9wqhs",
+                                "readOnly": True,
+                              },
+                            ],
+                        },
+                      ],
+                    "inputs":
+                      {
+                        "parameters":
+                          [
+                            {
+                              "name": "message",
+                              "value": "{{workflow.parameters.message}}",
+                            },
+                          ],
+                      },
+                    "metadata": {},
+                    "name": "argosay",
+                    "outputs": {},
+                    "tolerations":
+                      [
+                        {
+                          "effect": "NoSchedule",
+                          "key": "hub.jupyter.org/dedicated",
+                          "operator": "Equal",
+                          "value": "user",
+                        },
+                        {
+                          "effect": "NoSchedule",
+                          "key": "hub.jupyter.org_dedicated",
+                          "operator": "Equal",
+                          "value": "user",
+                        },
+                        {
+                          "effect": "NoExecute",
+                          "key": "node.kubernetes.io/not-ready",
+                          "operator": "Exists",
+                          "tolerationSeconds": 300,
+                        },
+                        {
+                          "effect": "NoExecute",
+                          "key": "node.kubernetes.io/unreachable",
+                          "operator": "Exists",
+                          "tolerationSeconds": 300,
+                        },
+                      ],
+                    "volumes":
+                      [
+                        {
+                          "name": "home",
+                          "persistentVolumeClaim":
+                            { "claimName": "jupyterhub-dev-share" },
+                        },
+                        {
+                          "configMap":
+                            { "defaultMode": 420, "name": "etc-skel" },
+                          "name": "skel",
+                        },
+                        {
+                          "name": "conda-store",
+                          "persistentVolumeClaim":
+                            { "claimName": "conda-store-dev-share" },
+                        },
+                        {
+                          "configMap":
+                            { "defaultMode": 420, "name": "dask-etc" },
+                          "name": "dask-etc",
+                        },
+                        {
+                          "configMap":
+                            { "defaultMode": 420, "name": "etc-ipython" },
+                          "name": "etc-ipython",
+                        },
+                        {
+                          "configMap":
+                            { "defaultMode": 420, "name": "etc-jupyter" },
+                          "name": "etc-jupyter",
+                        },
+                        {
+                          "configMap":
+                            {
+                              "defaultMode": 420,
+                              "name": "jupyterlab-settings",
+                            },
+                          "name": "jupyterlab-settings",
+                        },
+                        {
+                          "name": "kube-api-access-9wqhs",
+                          "projected":
+                            {
+                              "defaultMode": 420,
+                              "sources":
+                                [
+                                  {
+                                    "serviceAccountToken":
+                                      {
+                                        "expirationSeconds": 3607,
+                                        "path": "token",
+                                      },
+                                  },
+                                  {
+                                    "configMap":
+                                      {
+                                        "items":
+                                          [
+                                            {
+                                              "key": "ca.crt",
+                                              "path": "ca.crt",
+                                            },
+                                          ],
+                                        "name": "kube-root-ca.crt",
+                                      },
+                                  },
+                                  {
+                                    "downwardAPI":
+                                      {
+                                        "items":
+                                          [
+                                            {
+                                              "fieldRef":
+                                                {
+                                                  "apiVersion": "v1",
+                                                  "fieldPath": "metadata.namespace",
+                                                },
+                                              "path": "namespace",
+                                            },
+                                          ],
+                                      },
+                                  },
+                                ],
+                            },
+                        },
+                      ],
+                  },
+                ],
+              "ttlStrategy": { "secondsAfterCompletion": 300 },
+            },
+          "status": { "finishedAt": None, "startedAt": None },
+        },
+      "oldObject": None,
+      "dryRun": False,
+      "options": { "kind": "CreateOptions", "apiVersion": "meta.k8s.io/v1" },
+    },
+}

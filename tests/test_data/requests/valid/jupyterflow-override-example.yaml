@@ -1,0 +1,40 @@
+apiVersion: admission.k8s.io/v1
+kind: AdmissionReview
+request:
+  dryRun: false
+  kind:
+    group: argoproj.io
+    kind: Workflow
+    version: v1alpha1
+  name: hello-world
+  namespace: dev
+  object:
+    api: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      name: sparkly-python
+      namespace: dev
+      labels:
+        example: 'true'
+        jupyterflow-override: 'true'
+    spec:
+      templates:
+        - name: argosay
+          container:
+            name: notebook
+            image: quay.io/nebari/nebari-jupyterlab:2023.1.1
+            command:
+            - sh
+            - '-c'
+            args:
+            - conda run -n nebari-git-dask python script.py
+            resources: {}
+      entrypoint: argosay
+  uid: c1bba5c6-2189-41ff-9487-be504c04487b
+  userInfo:
+    groups:
+    - system:serviceaccounts
+    - system:serviceaccounts:dev
+    - system:authenticated
+    uid: eac0d7ab-af84-4c3f-a5fd-71845ff9e8c9
+    username: system:serviceaccount:dev:argo-admin
