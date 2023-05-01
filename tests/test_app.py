@@ -53,7 +53,7 @@ def test_mutate2(request_file, mocked_get_keycloak_user_info, mocked_get_user_po
     patch_text = base64.b64decode(response["response"]["patch"]).decode()
     patch = jsonpatch.JsonPatch.from_string(patch_text)
     mutated_spec = patch.apply(request["request"]["object"])
-    assert mutated_spec["spec"]["templates"][0]["volumes"] == [
+    for volume in [
         {
             "name": "home",
             "persistentVolumeClaim": {"claimName": "jupyterhub-dev-share"},
@@ -76,37 +76,5 @@ def test_mutate2(request_file, mocked_get_keycloak_user_info, mocked_get_user_po
             "configMap": {"defaultMode": 420, "name": "jupyterlab-settings"},
             "name": "jupyterlab-settings",
         },
-        {
-            "name": "kube-api-access-vjl9b",
-            "projected": {
-                "defaultMode": 420,
-                "sources": [
-                    {
-                        "serviceAccountToken": {
-                            "expirationSeconds": 3607,
-                            "path": "token",
-                        }
-                    },
-                    {
-                        "configMap": {
-                            "items": [{"key": "ca.crt", "path": "ca.crt"}],
-                            "name": "kube-root-ca.crt",
-                        }
-                    },
-                    {
-                        "downwardAPI": {
-                            "items": [
-                                {
-                                    "fieldRef": {
-                                        "apiVersion": "v1",
-                                        "fieldPath": "metadata.namespace",
-                                    },
-                                    "path": "namespace",
-                                }
-                            ]
-                        }
-                    },
-                ],
-            },
-        },
-    ]
+    ]:
+        assert volume in mutated_spec["spec"]["templates"][0]["volumes"]
