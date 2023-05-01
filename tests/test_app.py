@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from nebari_workflow_controller.app import admission_controller
+from nebari_workflow_controller.app import validate
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 
@@ -44,7 +44,7 @@ def test_admission_controller(mocker, request_file, allowed):
     )
     with open(request_file) as f:
         request = yaml.load(f, Loader=yaml.FullLoader)
-    response = admission_controller(request)
+    response = validate(request)
     print(response)
     assert response["response"]["allowed"] == allowed
     if not allowed:
