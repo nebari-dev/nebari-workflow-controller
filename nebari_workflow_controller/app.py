@@ -280,7 +280,6 @@ def get_container_keep_portions(user_pod_spec, api):
             api.sanitize_for_serialization(user_pod_spec.spec.containers[0].lifecycle),
             "lifecycle",
         ),
-        (user_pod_spec.spec.containers[0].name, "name"),
         (
             api.sanitize_for_serialization(
                 user_pod_spec.spec.containers[0].security_context

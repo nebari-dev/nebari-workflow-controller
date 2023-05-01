@@ -16,12 +16,15 @@ from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 @pytest.mark.parametrize(
     "request_file,allowed",
     sorted(
-        [(str(p), True) for p in Path("./tests/test_data/requests/pass").glob("*.yaml")]
+        [
+            (str(p), True)
+            for p in Path("./tests/test_data/requests/valid").glob("*.yaml")
+        ]
     )
     + sorted(
         [
             (str(p), False)
-            for p in Path("./tests/test_data/requests/fail").glob("*.yaml")
+            for p in Path("./tests/test_data/requests/invalid").glob("*.yaml")
         ]
     ),
 )

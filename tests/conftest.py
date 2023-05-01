@@ -10,7 +10,7 @@ os.environ["NAMESPACE"] = "default"
 
 def _valid_request_paths():
     return sorted(
-        [str(p) for p in Path("./tests/test_data/requests/pass").glob("*.yaml")]
+        [str(p) for p in Path("./tests/test_data/requests/valid").glob("*.yaml")]
     )
 
 
@@ -21,7 +21,7 @@ def valid_request_paths():
 
 def _invalid_request_paths():
     return sorted(
-        [str(p) for p in Path("./tests/test_data/requests/fail").glob("*.yaml")]
+        [str(p) for p in Path("./tests/test_data/requests/invalid").glob("*.yaml")]
     )
 
 
