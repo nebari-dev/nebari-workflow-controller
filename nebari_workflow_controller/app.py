@@ -206,101 +206,11 @@ def mutate(request=Body(...)):
 
         api = client.ApiClient()
 
-        container_keep_portions = [
-            (user_pod_spec.spec.containers[0].image, "image"),
-            (
-                [
-                    api.sanitize_for_serialization(var)
-                    for var in user_pod_spec.spec.containers[0].env
-                ],
-                "env",
-            ),
-            (
-                api.sanitize_for_serialization(
-                    user_pod_spec.spec.containers[0].lifecycle
-                ),
-                "lifecycle",
-            ),
-            (user_pod_spec.spec.containers[0].name, "name"),
-            (
-                api.sanitize_for_serialization(
-                    user_pod_spec.spec.containers[0].security_context
-                ),
-                "securityContext",
-            ),
-            (
-                [
-                    api.sanitize_for_serialization(v)
-                    for v in user_pod_spec.spec.containers[0].volume_mounts
-                ],
-                "volumeMounts",
-            ),
-            (user_pod_spec.spec.containers[0].working_dir, "workingDir"),
-        ]
-        spec_keep_portions = [
-            (
-                [
-                    api.sanitize_for_serialization(iC)
-                    for iC in user_pod_spec.spec.init_containers
-                ],
-                "initContainers",
-            ),
-            (
-                api.sanitize_for_serialization(user_pod_spec.spec.security_context),
-                "securityContext",
-            ),
-            (
-                api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
-                "nodeSelector",
-            ),
-            (
-                [
-                    api.sanitize_for_serialization(t)
-                    for t in user_pod_spec.spec.tolerations
-                ],
-                "tolerations",
-            ),
-            (
-                [
-                    api.sanitize_for_serialization(v)
-                    for v in user_pod_spec.spec.volumes
-                    if not v.name.startswith("kupe-api-access-")
-                ],
-                "volumes",
-            ),
-        ]
+        container_keep_portions = get_container_keep_portions(user_pod_spec, api)
+        spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
 
         for template in modified_spec["spec"]["templates"]:
-            for value, key in container_keep_portions:
-                if isinstance(value, dict):
-                    if key in template.get("container", {}):
-                        template["container"][key] = {
-                            **template["container"][key],
-                            **value,
-                        }
-                    else:
-                        template["container"][key] = value
-                elif isinstance(value, list):
-                    if key in template.get("container", {}):
-                        template["container"][key].append(value)
-                    else:
-                        template["container"][key] = value
-                else:
-                    template["container"][key] = value
-
-            for value, key in spec_keep_portions:
-                if isinstance(value, dict):
-                    if key in template:
-                        template[key] = {**template[key], **value}
-                    else:
-                        template[key] = value
-                elif isinstance(value, list):
-                    if key in template:
-                        template[key].append(value)
-                    else:
-                        template[key] = value
-                else:
-                    template[key] = value
+            mutate_template(container_keep_portions, spec_keep_portions, template)
 
         patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
         return {
@@ -322,3 +232,104 @@ def mutate(request=Body(...)):
                 "uid": request["request"]["uid"],
             },
         }
+
+
+def get_spec_keep_portions(user_pod_spec, api):
+    return [
+        (
+            [
+                api.sanitize_for_serialization(iC)
+                for iC in user_pod_spec.spec.init_containers
+            ],
+            "initContainers",
+        ),
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.security_context),
+            "securityContext",
+        ),
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
+            "nodeSelector",
+        ),
+        (
+            [api.sanitize_for_serialization(t) for t in user_pod_spec.spec.tolerations],
+            "tolerations",
+        ),
+        (
+            [
+                api.sanitize_for_serialization(v)
+                for v in user_pod_spec.spec.volumes
+                if not v.name.startswith("kupe-api-access-")
+            ],
+            "volumes",
+        ),
+    ]
+
+
+def get_container_keep_portions(user_pod_spec, api):
+    return [
+        (user_pod_spec.spec.containers[0].image, "image"),
+        (
+            [
+                api.sanitize_for_serialization(var)
+                for var in user_pod_spec.spec.containers[0].env
+            ],
+            "env",
+        ),
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.containers[0].lifecycle),
+            "lifecycle",
+        ),
+        (user_pod_spec.spec.containers[0].name, "name"),
+        (
+            api.sanitize_for_serialization(
+                user_pod_spec.spec.containers[0].security_context
+            ),
+            "securityContext",
+        ),
+        (
+            [
+                api.sanitize_for_serialization(v)
+                for v in user_pod_spec.spec.containers[0].volume_mounts
+            ],
+            "volumeMounts",
+        ),
+        (user_pod_spec.spec.containers[0].working_dir, "workingDir"),
+    ]
+
+
+def mutate_template(container_keep_portions, spec_keep_portions, template):
+    for value, key in container_keep_portions:
+        if "container" not in template:
+            continue
+
+        if isinstance(value, dict):
+            if key in template["container"]:
+                template["container"][key] = {
+                    **template["container"][key],
+                    **value,
+                }
+            else:
+                # TODO: I think this will throw error if template doesn't have container key
+                template["container"][key] = value
+        elif isinstance(value, list):
+            if key in template["container"]:
+                template["container"][key].append(value)
+            else:
+                template["container"][key] = value
+        else:
+            template["container"][key] = value
+
+    for value, key in spec_keep_portions:
+        if isinstance(value, dict):
+            if key in template:
+                template[key] = {**template[key], **value}
+            else:
+                template[key] = value
+        elif isinstance(value, list):
+            if key in template:
+                template[key].append(value)
+            else:
+                template[key] = value
+        else:
+            template[key] = value
