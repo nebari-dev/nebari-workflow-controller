@@ -309,7 +309,6 @@ def mutate_template(container_keep_portions, spec_keep_portions, template):
                     **value,
                 }
             else:
-                # TODO: I think this will throw error if template doesn't have container key
                 template["container"][key] = value
         elif isinstance(value, list):
             if key in template["container"]:
