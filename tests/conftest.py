@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
+
 os.environ["NAMESPACE"] = "default"
 
 
@@ -64,3 +66,39 @@ def jupyterlab_pod_spec():
     with open("tests/test_data/jupyterlab_pod_spec.pkl", "rb") as f:
         jupyterlab_pod_spec = pickle.load(f)
         return jupyterlab_pod_spec
+
+
+@pytest.fixture()  # (scope="session")
+def mocked_get_keycloak_user_info(mocker):
+    mocker.patch(
+        "nebari_workflow_controller.app.get_keycloak_user_info",
+        return_value=KeycloakUser(
+            username="mocked_username",
+            id="mocked_id",
+            groups=[
+                KeycloakGroup(**g)
+                for g in [
+                    {
+                        "id": "3135c469-02a9-49bc-9245-f886e6317397",
+                        "name": "admin",
+                        "path": "/admin",
+                    },
+                    {
+                        "id": "137d8913-e7eb-4d68-85a3-59a7a15e99fa",
+                        "name": "analyst",
+                        "path": "/analyst",
+                    },
+                ]
+            ],
+        ),
+    )
+
+
+@pytest.fixture()  # (scope="session")
+def mocked_get_user_pod_spec(mocker):
+    with open("tests/test_data/jupyterlab_pod_spec.pkl", "rb") as f:
+        jupyterlab_pod_spec = pickle.load(f)
+    mocker.patch(
+        "nebari_workflow_controller.app.get_user_pod_spec",
+        return_value=jupyterlab_pod_spec,
+    )
