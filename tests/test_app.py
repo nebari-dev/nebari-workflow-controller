@@ -5,12 +5,11 @@ import pytest
 import yaml
 from kubernetes import client
 
-from nebari_workflow_controller.app import (
+from nebari_workflow_controller.app import mutate, validate
+from nebari_workflow_controller.utils import (
     get_container_keep_portions,
     get_spec_keep_portions,
-    mutate,
     mutate_template,
-    validate,
 )
 from tests.conftest import _invalid_request_paths, _valid_request_paths
 
