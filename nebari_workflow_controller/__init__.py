@@ -1,6 +1,4 @@
-import logging.config
-
-LOGGING_CONFIG = {
+DEFAULT_LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -32,4 +30,3 @@ LOGGING_CONFIG = {
         },
     },
 }
-logging.config.dictConfig(LOGGING_CONFIG)

@@ -33,6 +33,7 @@ conda_store_global_namespaces = ["global", "nebari-git"]
 
 @app.post("/validate")
 def validate(request=Body(...)):
+    logger.debug(f"Received request: \n\n{request}")
     return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
@@ -112,6 +113,7 @@ mutate_label = "jupyterflow-override"
 
 @app.post("/mutate")
 def mutate(request=Body(...)):
+    logger.debug(f"Received request: \n\n{request}")
     return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
