@@ -121,72 +121,78 @@ def find_invalid_volume_mount(
 
 @app.post("/validate")
 def validate(request=Body(...)):
-    keycloak_user = get_keycloak_user_info(request)
-
     return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
         request_uid=request["request"]["uid"],
     )
-    shared_filesystem_sub_paths = set(
-        ["shared" + group.path for group in keycloak_user.groups]
-        + ["home/" + keycloak_user.username]
-    )
-    conda_store_sub_paths = set(
-        [group.path.replace("/", "") for group in keycloak_user.groups]
-        + conda_store_global_namespaces
-        + [keycloak_user.username]
-    )
-    allowed_pvc_sub_paths_iterable = tuple(
-        zip(
-            (jupythub_share_name, conda_store_share_name),
-            (shared_filesystem_sub_paths, conda_store_sub_paths),
+    try:
+        keycloak_user = get_keycloak_user_info(request)
+
+        shared_filesystem_sub_paths = set(
+            ["shared" + group.path for group in keycloak_user.groups]
+            + ["home/" + keycloak_user.username]
         )
-    )
+        conda_store_sub_paths = set(
+            [group.path.replace("/", "") for group in keycloak_user.groups]
+            + conda_store_global_namespaces
+            + [keycloak_user.username]
+        )
+        allowed_pvc_sub_paths_iterable = tuple(
+            zip(
+                (jupythub_share_name, conda_store_share_name),
+                (shared_filesystem_sub_paths, conda_store_sub_paths),
+            )
+        )
 
-    # verify only allowed pvcs were attached as volumes
-    volume_name_pvc_name_map = {}
-    for volume in (
-        request.get("request", {}).get("object", {}).get("spec", {}).get("volumes", {})
-    ):
-        if "persistentVolumeClaim" in volume:
-            if volume["persistentVolumeClaim"]["claimName"] not in allowed_pvcs:
-                logger.info(
-                    f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}"
-                )
-                denyReason = f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}. Allowed PVCs are: {allowed_pvcs}."
-                return return_response(False, message=denyReason)
-            else:
-                volume_name_pvc_name_map[volume["name"]] = volume[
-                    "persistentVolumeClaim"
-                ]["claimName"]
+        # verify only allowed pvcs were attached as volumes
+        volume_name_pvc_name_map = {}
+        for volume in (
+            request.get("request", {})
+            .get("object", {})
+            .get("spec", {})
+            .get("volumes", {})
+        ):
+            if "persistentVolumeClaim" in volume:
+                if volume["persistentVolumeClaim"]["claimName"] not in allowed_pvcs:
+                    logger.info(
+                        f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}"
+                    )
+                    denyReason = f"Workflow attempts to mount disallowed PVC: {volume['persistentVolumeClaim']['claimName']}. Allowed PVCs are: {allowed_pvcs}."
+                    return return_response(False, message=denyReason)
+                else:
+                    volume_name_pvc_name_map[volume["name"]] = volume[
+                        "persistentVolumeClaim"
+                    ]["claimName"]
 
-    for template in request["request"]["object"]["spec"]["templates"]:
-        # check if any container or initContainer mounts disallowed subPath
-        if "volumeMounts" in template.get("container", {}):
-            if denyReason := find_invalid_volume_mount(
-                template["container"]["volumeMounts"],
-                volume_name_pvc_name_map,
-                allowed_pvc_sub_paths_iterable,
-            ):
-                return return_response(False, message=denyReason)
-
-        for initContainer in template.get("initContainers", []):
-            if "volumeMounts" in initContainer:
+        for template in request["request"]["object"]["spec"]["templates"]:
+            # check if any container or initContainer mounts disallowed subPath
+            if "volumeMounts" in template.get("container", {}):
                 if denyReason := find_invalid_volume_mount(
-                    initContainer["volumeMounts"],
+                    template["container"]["volumeMounts"],
                     volume_name_pvc_name_map,
                     allowed_pvc_sub_paths_iterable,
                 ):
                     return return_response(False, message=denyReason)
 
-    if request["request"]["object"]["metadata"].get("name"):
-        log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
-    else:
-        log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['generateName']}"
-    logger.info(log_msg)
+            for initContainer in template.get("initContainers", []):
+                if "volumeMounts" in initContainer:
+                    if denyReason := find_invalid_volume_mount(
+                        initContainer["volumeMounts"],
+                        volume_name_pvc_name_map,
+                        allowed_pvc_sub_paths_iterable,
+                    ):
+                        return return_response(False, message=denyReason)
 
-    return return_response(True)
+        if request["request"]["object"]["metadata"].get("name"):
+            log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['name']}"
+        else:
+            log_msg = f"Allowing workflow to be created: {request['request']['object']['metadata']['generateName']}"
+        logger.info(log_msg)
+
+        return return_response(True)
+    except Exception as e:
+        return process_unhandled_exception(e, return_response)
 
 
 def get_user_pod_spec(keycloak_user):
@@ -217,6 +223,12 @@ def get_user_pod_spec(keycloak_user):
 mutate_label = "jupyterflow-override"
 
 
+def process_unhandled_exception(e, return_response):
+    error_message = "An internal error occurred in nebari-workflow-controller while mutating the workflow.  Please open an issue at https://github.com/nebari-dev/nebari-workflow-controller/issues.  The error was: {e}"
+    logger.exception(e)
+    return return_response(False, message=error_message)
+
+
 @app.post("/mutate")
 def mutate(request=Body(...)):
     return_response = partial(
@@ -224,32 +236,37 @@ def mutate(request=Body(...)):
         apiVersion=request["apiVersion"],
         request_uid=request["request"]["uid"],
     )
+    try:
+        spec = request["request"]["object"]
+        if (
+            spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false")
+            != "false"
+        ):
+            modified_spec = copy.deepcopy(spec)
+            keycloak_user = get_keycloak_user_info(request)
+            try:
+                user_pod_spec = get_user_pod_spec(keycloak_user)
+            except NWFCException as e:
+                return return_response(False, message=str(e))
 
-    spec = request["request"]["object"]
-    if spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false") != "false":
-        modified_spec = copy.deepcopy(spec)
-        keycloak_user = get_keycloak_user_info(request)
-        try:
-            user_pod_spec = get_user_pod_spec(keycloak_user)
-        except NWFCException as e:
-            return return_response(False, message=str(e))
+            api = client.ApiClient()
 
-        api = client.ApiClient()
+            container_keep_portions = get_container_keep_portions(user_pod_spec, api)
+            spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
 
-        container_keep_portions = get_container_keep_portions(user_pod_spec, api)
-        spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
+            for template in modified_spec["spec"]["templates"]:
+                mutate_template(container_keep_portions, spec_keep_portions, template)
 
-        for template in modified_spec["spec"]["templates"]:
-            mutate_template(container_keep_portions, spec_keep_portions, template)
-
-        patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
-        return return_response(
-            allowed=True,
-            patch=patch,
-            patchType="JSONPatch",
-        )
-    else:
-        return return_response(True)
+            patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
+            return return_response(
+                allowed=True,
+                patch=patch,
+                patchType="JSONPatch",
+            )
+        else:
+            return return_response(True)
+    except Exception as e:
+        return process_unhandled_exception(e, return_response)
 
 
 def get_spec_keep_portions(user_pod_spec, api):
