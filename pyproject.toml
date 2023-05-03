@@ -51,6 +51,7 @@ dependencies = [
     "uvicorn==0.21.1",
     "pydantic==1.10.7",
     "jsonpatch==1.32",
+    "kubernetes==26.1.0",
 ]
 
 [project.optional-dependencies]
