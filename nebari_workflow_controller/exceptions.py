@@ -1,0 +1,2 @@
+class NebariWorkflowControllerException(Exception):
+    pass

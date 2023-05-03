@@ -9,6 +9,9 @@ from fastapi import Body, FastAPI
 from keycloak import KeycloakAdmin
 from kubernetes import client, config
 
+from nebari_workflow_controller.exceptions import (
+    NebariWorkflowControllerException as NWFCException,
+)
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 logger = logging.getLogger(__name__)
@@ -70,7 +73,18 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
     return keycloak_user
 
 
-def base_return_response(allowed, apiVersion, request_uid, message=None):
+def base_return_response(
+    allowed, apiVersion, request_uid, message=None, patch=None, patchType=None
+):
+    if (not patch) != (not patchType):
+        raise Exception(
+            f"patch and patchType must be specified together.  patch: {patch}, patchType: {patchType}"
+        )
+    if (allowed) != (message is None):
+        raise Exception(
+            "Failure message must be specified only when workflow not allowed"
+        )
+
     response = {
         "apiVersion": apiVersion,
         "kind": "AdmissionReview",
@@ -81,6 +95,11 @@ def base_return_response(allowed, apiVersion, request_uid, message=None):
     }
     if not allowed:
         response["response"]["status"] = {"message": message}
+
+    if patch:
+        response["response"]["patch"] = base64.b64encode(str(patch).encode()).decode()
+        response["response"]["patchType"] = patchType
+
     return response
 
 
@@ -187,7 +206,9 @@ def get_user_pod_spec(keycloak_user):
 
     # throw error if no pods found
     if len(jupyter_pod_list) == 0:
-        raise Exception(f"No pod found for user {keycloak_user.username}.")
+        raise NWFCException(
+            f"A user pod instance for Jupyterhub user {keycloak_user.username} must be running when workflow starts. No pod found for user {keycloak_user.username}."
+        )
 
     jupyter_pod_spec = jupyter_pod_list[0]
     return jupyter_pod_spec
@@ -198,11 +219,20 @@ mutate_label = "jupyterflow-override"
 
 @app.post("/mutate")
 def mutate(request=Body(...)):
+    return_response = partial(
+        base_return_response,
+        apiVersion=request["apiVersion"],
+        request_uid=request["request"]["uid"],
+    )
+
     spec = request["request"]["object"]
     if spec.get("metadata", {}).get("labels", {}).get(mutate_label, "false") != "false":
         modified_spec = copy.deepcopy(spec)
         keycloak_user = get_keycloak_user_info(request)
-        user_pod_spec = get_user_pod_spec(keycloak_user)
+        try:
+            user_pod_spec = get_user_pod_spec(keycloak_user)
+        except NWFCException as e:
+            return return_response(False, message=str(e))
 
         api = client.ApiClient()
 
@@ -213,25 +243,13 @@ def mutate(request=Body(...)):
             mutate_template(container_keep_portions, spec_keep_portions, template)
 
         patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
-        return {
-            "apiVersion": request["apiVersion"],
-            "kind": "AdmissionReview",
-            "response": {
-                "allowed": True,
-                "uid": request["request"]["uid"],
-                "patch": base64.b64encode(str(patch).encode()).decode(),
-                "patchType": "JSONPatch",
-            },
-        }
+        return return_response(
+            allowed=True,
+            patch=patch,
+            patchType="JSONPatch",
+        )
     else:
-        return {
-            "apiVersion": request["apiVersion"],
-            "kind": "AdmissionReview",
-            "response": {
-                "allowed": True,
-                "uid": request["request"]["uid"],
-            },
-        }
+        return return_response(True)
 
 
 def get_spec_keep_portions(user_pod_spec, api):
