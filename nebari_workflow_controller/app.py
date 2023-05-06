@@ -39,6 +39,7 @@ def validate(request=Body(...)):
         apiVersion=request["apiVersion"],
         request_uid=request["request"]["uid"],
     )
+
     try:
         keycloak_user = get_keycloak_user_info(request)
 
@@ -113,12 +114,13 @@ mutate_label = "jupyterflow-override"
 
 @app.post("/mutate")
 def mutate(request=Body(...)):
-    logger.debug(f"Received request: \n\n{request}")
+    logger.warn(f"Received request: \n\n{request}")
     return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
         request_uid=request["request"]["uid"],
     )
+
     try:
         spec = request["request"]["object"]
         if (

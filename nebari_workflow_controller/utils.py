@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import traceback
 
 from keycloak import KeycloakAdmin
 from kubernetes import client, config
@@ -14,24 +15,36 @@ logger = logging.getLogger(__name__)
 
 
 def process_unhandled_exception(e, return_response, logger):
-    error_message = "An internal error occurred in nebari-workflow-controller while mutating the workflow.  Please open an issue at https://github.com/nebari-dev/nebari-workflow-controller/issues.  The error was: {e}"
+    error_message = f"An internal error occurred in nebari-workflow-controller while mutating the workflow.  Please open an issue at https://github.com/nebari-dev/nebari-workflow-controller/issues.  The error was: {traceback.format_exc()}"
     logger.exception(e)
     return return_response(False, message=error_message)
 
 
 def sent_by_argo(request: dict):
-    # Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".  If so, then we can trust the uid from there.
-    sent_by_argo = False
-    if request["request"]["userInfo"]["username"].startswith("system:serviceaccount"):
-        for managedField in request["request"]["object"]["metadata"]["managedFields"]:
+    # Check if any of these labels shows up under ManagedFields with manager "argo" or "workflow-controller".  If so, then we can trust the uid from there.
+    possible_labels_added_by_argo = {
+        "workflows.argoproj.io/creator",
+        "workflows.argoproj.io/cron-workflow",
+        "workflows.argoproj.io/resubmitted-from-workflow",
+    }
+
+    if not request["request"]["userInfo"]["username"].startswith(
+        "system:serviceaccount"
+    ):
+        return None
+
+    for managedField in request["request"]["object"]["metadata"]["managedFields"]:
+        if managedField.get("manager", "") not in {"argo", "workflow-controller"}:
+            continue
+
+        for possible_label_added_by_argo in possible_labels_added_by_argo:
             if (
-                managedField.get("manager", "") == "argo"
-                and "f:workflows.argoproj.io/creator"
+                "f:" + possible_label_added_by_argo
                 in managedField["fieldsV1"]["f:metadata"]["f:labels"]
             ):
-                sent_by_argo = True
-                break
-    return sent_by_argo
+                return possible_label_added_by_argo
+
+    return None
 
 
 def get_keycloak_user_info(request: dict) -> KeycloakUser:
@@ -47,17 +60,73 @@ def get_keycloak_user_info(request: dict) -> KeycloakUser:
         client_id="admin-cli",
     )
 
-    if sent_by_argo(request):
-        # TODO: handle case if resubmitted from workflow
-        keycloak_uid = request["request"]["object"]["metadata"]["labels"][
-            "workflows.argoproj.io/creator"
-        ]
+    if label_added_by_argo := sent_by_argo(request):
+        if label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
+            # TODO: handle case if resubmitted from workflow
+            # got original workflow spec then proceed as if we were dealing with workflow
+
+            # TODO: LEFT OFF HERE - need to recursively follow workflows up until we find the original.  A resubmitted wf could go to a wf submitted by cron so I need to check each of those each time.  I need to check if the label manager is correct each time also.
+            def get_original_workflow_creator(workflow_object):
+                workflow_object["metadata"]["labels"][label_added_by_argo]
+                parent_workflow = k8s_client.call_api(
+                    f"/apis/argoproj.io/v1alpha1/namespaces/{os.environ['NAMESPACE']}/workflows/{originally_submitted_workflow_name}",
+                    "GET",
+                    auth_settings=["BearerToken"],
+                    response_type="object",
+                )[0]
+                if label_added_by_argo in parent_workflow["metadata"]["labels"]:
+                    pass
+
+            originally_submitted_workflow_name = request["request"]["object"][
+                "metadata"
+            ]["labels"][label_added_by_argo]
+            config.incluster_config.load_incluster_config()
+            k8s_client = client.ApiClient()
+            original_workflow = k8s_client.call_api(
+                f"/apis/argoproj.io/v1alpha1/namespaces/{os.environ['NAMESPACE']}/workflows/{originally_submitted_workflow_name}",
+                "GET",
+                auth_settings=["BearerToken"],
+                response_type="object",
+            )[0]
+            logger.warn(f"original_workflow: {original_workflow}")
+            keycloak_uid = original_workflow["metadata"]["labels"][
+                "workflows.argoproj.io/creator"
+            ]
+        elif label_added_by_argo == "workflows.argoproj.io/cron-workflow":
+            # TODO: handle case if submitted from CronWorkflow
+            # get cronWorkflow Spec then proceed as if we were dealing with workflow
+            originally_submitted_cronworkflow_name = request["request"]["object"][
+                "metadata"
+            ]["labels"][label_added_by_argo]
+            config.incluster_config.load_incluster_config()
+            k8s_client = client.ApiClient()
+            original_cronworkflow = k8s_client.call_api(
+                f"/apis/argoproj.io/v1alpha1/namespaces/{os.environ['NAMESPACE']}/cronworkflows/{originally_submitted_cronworkflow_name}",
+                "GET",
+                auth_settings=["BearerToken"],
+                response_type="object",
+            )[0]
+            keycloak_uid = original_cronworkflow["metadata"]["labels"][
+                "workflows.argoproj.io/creator"
+            ]
+        elif label_added_by_argo == "workflows.argoproj.io/creator":
+            keycloak_uid = request["request"]["object"]["metadata"]["labels"][
+                label_added_by_argo
+            ]
         keycloak_username = kcadm.get_user(keycloak_uid)["username"]
     else:
+        # sent by kubectl
         # TODO: put try catch here if username is not found
+        logger.warn("not sent_by_argo")
         keycloak_username = request["request"]["userInfo"]["username"]
         keycloak_uid = kcadm.get_user_id(keycloak_username)
+        if not keycloak_uid:
+            raise NWFCException(
+                f"No Keycloak user found with username: {keycloak_username}"
+            )
 
+    logger.warn(keycloak_uid)
+    logger
     groups = kcadm.get_user_groups(keycloak_uid)
 
     keycloak_user = KeycloakUser(
