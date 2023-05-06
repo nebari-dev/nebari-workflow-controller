@@ -14,7 +14,7 @@ from nebari_workflow_controller.utils import (
     base_return_response,
     find_invalid_volume_mount,
     get_container_keep_portions,
-    get_keycloak_user_info,
+    get_keycloak_user,
     get_spec_keep_portions,
     get_user_pod_spec,
     mutate_template,
@@ -41,7 +41,7 @@ def validate(request=Body(...)):
     )
 
     try:
-        keycloak_user = get_keycloak_user_info(request)
+        keycloak_user = get_keycloak_user(request)
 
         shared_filesystem_sub_paths = set(
             ["shared" + group.path for group in keycloak_user.groups]
@@ -128,7 +128,7 @@ def mutate(request=Body(...)):
             != "false"
         ):
             modified_spec = copy.deepcopy(spec)
-            keycloak_user = get_keycloak_user_info(request)
+            keycloak_user = get_keycloak_uid_username(request)
             try:
                 user_pod_spec = get_user_pod_spec(keycloak_user)
             except NWFCException as e:
