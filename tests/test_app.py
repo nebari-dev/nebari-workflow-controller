@@ -19,7 +19,7 @@ from tests.conftest import _invalid_request_paths, _valid_request_paths
     [(str(p), True) for p in _valid_request_paths()]
     + [(str(p), False) for p in _invalid_request_paths()],
 )
-def test_validate(request_file, allowed, mocked_get_keycloak_user_info):
+def test_validate(request_file, allowed, mocked_get_keycloak_user):
     with open(request_file) as f:
         request = yaml.load(f, Loader=yaml.FullLoader)
     response = validate(request)
