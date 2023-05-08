@@ -29,6 +29,8 @@ request:
             args:
             - conda run -n nebari-git-dask python script.py
             resources: {}
+            nodeSpec:
+              mylabel: myValue
       entrypoint: argosay
   uid: c1bba5c6-2189-41ff-9487-be504c04487b
   userInfo:

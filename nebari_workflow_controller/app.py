@@ -10,6 +10,9 @@ from kubernetes import client
 from nebari_workflow_controller.exceptions import (
     NebariWorkflowControllerException as NWFCException,
 )
+from nebari_workflow_controller.exceptions import (
+    NebariWorkflowControllerUnsupportedException as NWFCUnsupportedException,
+)
 from nebari_workflow_controller.utils import (
     base_return_response,
     find_invalid_volume_mount,
@@ -105,6 +108,8 @@ def validate(request=Body(...)):
         logger.info(log_msg)
 
         return return_response(True)
+    except NWFCUnsupportedException as e:
+        return return_response(False, message=str(e))
     except Exception as e:
         return process_unhandled_exception(e, return_response, logger)
 
@@ -139,7 +144,14 @@ def mutate(request=Body(...)):
             container_keep_portions = get_container_keep_portions(user_pod_spec, api)
             spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
 
-            for template in modified_spec["spec"]["templates"]:
+            if spec["kind"] == "Workflow":
+                templates = modified_spec["spec"]["templates"]
+            elif spec["kind"] == "CronWorkflow":
+                templates = modified_spec["spec"]["workflowSpec"]["templates"]
+            else:
+                raise Exception("Only expecting Workflow or CronWorkflow")
+
+            for template in templates:
                 mutate_template(container_keep_portions, spec_keep_portions, template)
 
             patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)

@@ -9,6 +9,9 @@ from kubernetes import client, config
 from nebari_workflow_controller.exceptions import (
     NebariWorkflowControllerException as NWFCException,
 )
+from nebari_workflow_controller.exceptions import (
+    NebariWorkflowControllerUnsupportedException as NWFCUnsupportedException,
+)
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,7 @@ def process_unhandled_exception(e, return_response, logger):
     return return_response(False, message=error_message)
 
 
-def sent_by_argo(request: dict):
+def sent_by_argo(workflow: dict):
     # Check if any of these labels shows up under ManagedFields with manager "argo" or "workflow-controller".  If so, then we can trust the uid from there.
     possible_labels_added_by_argo = {
         "workflows.argoproj.io/creator",
@@ -28,12 +31,7 @@ def sent_by_argo(request: dict):
         "workflows.argoproj.io/resubmitted-from-workflow",
     }
 
-    if not request["request"]["userInfo"]["username"].startswith(
-        "system:serviceaccount"
-    ):
-        return None
-
-    for managedField in request["request"]["object"]["metadata"]["managedFields"]:
+    for managedField in workflow["metadata"]["managedFields"]:
         if managedField.get("manager", "") not in {"argo", "workflow-controller"}:
             continue
 
@@ -56,10 +54,11 @@ def get_keycloak_user(request):
         realm_name="nebari",
         client_id="admin-cli",
     )
-    breakpoint()
+
     config.incluster_config.load_incluster_config()
+
     keycloak_uid, keycloak_username = get_keycloak_uid_username(
-        kcadm, request, client.ApiClient()
+        kcadm, request["request"]["object"], client.ApiClient()
     )
     groups = kcadm.get_user_groups(keycloak_uid)
 
@@ -73,7 +72,7 @@ def get_keycloak_user(request):
 
 def get_keycloak_uid_username(
     kcadm,
-    request: dict,
+    workflow: dict,
     k8s_client: client.ApiClient,
 ) -> KeycloakUser:
     # Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".
@@ -81,34 +80,23 @@ def get_keycloak_uid_username(
     # Should volumeMounts be allowed based on current requester or based on the original requester?  Current Requester
 
     # TODO: put try catch here if can't connect to keycloak
-    label_added_by_argo = sent_by_argo(request)
+    label_added_by_argo = sent_by_argo(workflow)
     if not label_added_by_argo:
-        # sent by kubectl
-        # TODO: put try catch here if username is not found
-        logger.warn("not sent_by_argo")
-        keycloak_username = request["request"]["userInfo"]["username"]
-        keycloak_uid = kcadm.get_user_id(keycloak_username)
-        if not keycloak_uid:
-            raise NWFCException(
-                f"No Keycloak user found with username: {keycloak_username}"
-            )
-        return keycloak_uid, keycloak_username
+        raise NWFCUnsupportedException(
+            "Only workflows submitted via Argo Workflows (not kubectl) are supported by Nebari Workflow Controller"
+        )
 
     if label_added_by_argo == "workflows.argoproj.io/creator":
-        keycloak_uid = request["request"]["object"]["metadata"]["labels"][
-            label_added_by_argo
-        ]
+        keycloak_uid = workflow["metadata"]["labels"][label_added_by_argo]
         keycloak_username = kcadm.get_user(keycloak_uid)["username"]
         return keycloak_uid, keycloak_username
     elif label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
-        raise NWFCException(
-            "Resubmitting Workflows is not supported by Nebari Workflow Controller"
+        raise NWFCUnsupportedException(
+            "Resubmitting workflows is not supported by Nebari Workflow Controller"
         )
     elif label_added_by_argo == "workflows.argoproj.io/cron-workflow":
-        api_path = "/apis/argoproj.io/v1alpha1/namespaces/{namespace}/cronworkflows/{parent_cronworkflow_name}"
-        parent_workflow_name = request["request"]["object"]["metadata"]["labels"][
-            label_added_by_argo
-        ]
+        api_path = "/apis/argoproj.io/v1alpha1/namespaces/{namespace}/cronworkflows/{parent_workflow_name}"
+        parent_workflow_name = workflow["metadata"]["labels"][label_added_by_argo]
         # TODO: handle if parent workflow is not found.
         parent_workflow = k8s_client.call_api(
             api_path.format(
@@ -209,10 +197,6 @@ def get_spec_keep_portions(user_pod_spec, api):
             "securityContext",
         ),
         (
-            api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
-            "nodeSelector",
-        ),
-        (
             [api.sanitize_for_serialization(t) for t in user_pod_spec.spec.tolerations],
             "tolerations",
         ),
@@ -240,6 +224,10 @@ def get_container_keep_portions(user_pod_spec, api):
         (
             api.sanitize_for_serialization(user_pod_spec.spec.containers[0].lifecycle),
             "lifecycle",
+        ),
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.containers[0].resources),
+            "resources",
         ),
         (
             api.sanitize_for_serialization(
