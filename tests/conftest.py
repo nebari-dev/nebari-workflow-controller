@@ -71,7 +71,7 @@ def jupyterlab_pod_spec():
 @pytest.fixture()  # (scope="session")
 def mocked_get_keycloak_user_info(mocker):
     mocker.patch(
-        "nebari_workflow_controller.app.get_keycloak_user_info",
+        "nebari_workflow_controller.utils.get_keycloak_user",
         return_value=KeycloakUser(
             username="mocked_username",
             id="mocked_id",
