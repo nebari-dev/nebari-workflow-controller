@@ -128,7 +128,7 @@ def mutate(request=Body(...)):
             != "false"
         ):
             modified_spec = copy.deepcopy(spec)
-            keycloak_user = get_keycloak_uid_username(request)
+            keycloak_user = get_keycloak_user(request)
             try:
                 user_pod_spec = get_user_pod_spec(keycloak_user)
             except NWFCException as e:

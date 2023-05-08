@@ -56,8 +56,11 @@ def get_keycloak_user(request):
         realm_name="nebari",
         client_id="admin-cli",
     )
+    breakpoint()
     config.incluster_config.load_incluster_config()
-    keycloak_uid, keycloak_username = get_keycloak_uid_username(kcadm, request)
+    keycloak_uid, keycloak_username = get_keycloak_uid_username(
+        kcadm, request, client.ApiClient()
+    )
     groups = kcadm.get_user_groups(keycloak_uid)
 
     keycloak_user = KeycloakUser(
@@ -69,10 +72,13 @@ def get_keycloak_user(request):
 
 
 def get_keycloak_uid_username(
-    kcadm, request: dict, k8s_client=client.ApiClient()
+    kcadm,
+    request: dict,
+    k8s_client: client.ApiClient,
 ) -> KeycloakUser:
     # Check if `workflows.argoproj.io/creator` shows up under ManagedFields with manager "argo".
     # If so, then we can trust the uid from there.  If not, then we have to trust the username from the request.
+    # Should volumeMounts be allowed based on current requester or based on the original requester?  Current Requester
 
     # TODO: put try catch here if can't connect to keycloak
     label_added_by_argo = sent_by_argo(request)
@@ -95,25 +101,27 @@ def get_keycloak_uid_username(
         keycloak_username = kcadm.get_user(keycloak_uid)["username"]
         return keycloak_uid, keycloak_username
     elif label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
-        api_path = "/apis/argoproj.io/v1alpha1/namespaces/{namespace}/workflows/{parent_workflow_name}"
+        raise NWFCException(
+            "Resubmitting Workflows is not supported by Nebari Workflow Controller"
+        )
     elif label_added_by_argo == "workflows.argoproj.io/cron-workflow":
         api_path = "/apis/argoproj.io/v1alpha1/namespaces/{namespace}/cronworkflows/{parent_cronworkflow_name}"
+        parent_workflow_name = request["request"]["object"]["metadata"]["labels"][
+            label_added_by_argo
+        ]
+        # TODO: handle if parent workflow is not found.
+        parent_workflow = k8s_client.call_api(
+            api_path.format(
+                namespace=os.environ["NAMESPACE"],
+                parent_workflow_name=parent_workflow_name,
+            ),
+            "GET",
+            auth_settings=["BearerToken"],
+            response_type="object",
+        )[0]
+        return get_keycloak_uid_username(kcadm, parent_workflow, k8s_client)
     else:
         raise Exception("Label {label_added_by_argo} must be handled, but was not.")
-
-    parent_workflow_name = request["request"]["object"]["metadata"]["labels"][
-        label_added_by_argo
-    ]
-    # TODO: handle if parent workflow is not found.
-    parent_workflow = k8s_client.call_api(
-        api_path.format(
-            namespace=os.environ["NAMESPACE"], parent_workflow_name=parent_workflow_name
-        ),
-        "GET",
-        auth_settings=["BearerToken"],
-        response_type="object",
-    )[0]
-    return get_keycloak_uid_username(kcadm, parent_workflow, k8s_client)
 
 
 def base_return_response(
