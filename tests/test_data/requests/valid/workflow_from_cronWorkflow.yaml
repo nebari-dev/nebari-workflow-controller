@@ -1,0 +1,132 @@
+{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "request":
+    {
+      "uid": "34560904-f8a3-40dc-8b7b-6fc0d69c0272",
+      "kind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "resource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "requestKind":
+        { "group": "argoproj.io", "version": "v1alpha1", "kind": "Workflow" },
+      "requestResource":
+        {
+          "group": "argoproj.io",
+          "version": "v1alpha1",
+          "resource": "workflows",
+        },
+      "name": "test-cron-wf-1683301320",
+      "namespace": "dev",
+      "operation": "CREATE",
+      "userInfo":
+        {
+          "username": "system:serviceaccount:dev:argo-workflows-workflow-controller",
+          "uid": "fb6f33f8-e9d1-44b0-907d-54890d8b5072",
+          "groups":
+            [
+              "system:serviceaccounts",
+              "system:serviceaccounts:dev",
+              "system:authenticated",
+            ],
+          "extra":
+            {
+              "authentication.kubernetes.io/pod-name":
+                ["argo-workflows-workflow-controller-58dcd4c4cd-qt45z"],
+              "authentication.kubernetes.io/pod-uid":
+                ["337b2b38-fac4-4dab-bae1-10ed6d26739f"],
+            },
+        },
+      "object":
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Workflow",
+          "metadata":
+            {
+              "annotations":
+                {
+                  "workflows.argoproj.io/scheduled-time": "2023-05-05T15:42:00Z",
+                },
+              "creationTimestamp": None,
+              "labels":
+                { "workflows.argoproj.io/cron-workflow": "test-cron-wf" },
+              "managedFields":
+                [
+                  {
+                    "apiVersion": "argoproj.io/v1alpha1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1":
+                      {
+                        "f:metadata":
+                          {
+                            "f:annotations":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/scheduled-time": {},
+                              },
+                            "f:labels":
+                              {
+                                ".": {},
+                                "f:workflows.argoproj.io/cron-workflow": {},
+                              },
+                            "f:ownerReferences":
+                              {
+                                ".": {},
+                                ? 'k:{"uid":"ab9f43b6-5b7c-49f6-9745-32a2e38dc994"}'
+                                : {},
+                              },
+                          },
+                        "f:spec": {},
+                        "f:status": {},
+                      },
+                    "manager": "workflow-controller",
+                    "operation": "Update",
+                    "time": "2023-05-05T15:42:00Z",
+                  },
+                ],
+              "name": "test-cron-wf-1683301320",
+              "ownerReferences":
+                [
+                  {
+                    "apiVersion": "argoproj.io/v1alpha1",
+                    "blockOwnerDeletion": True,
+                    "controller": True,
+                    "kind": "CronWorkflow",
+                    "name": "test-cron-wf",
+                    "uid": "ab9f43b6-5b7c-49f6-9745-32a2e38dc994",
+                  },
+                ],
+            },
+          "spec":
+            {
+              "arguments": {},
+              "entrypoint": "whalesay",
+              "templates":
+                [
+                  {
+                    "container":
+                      {
+                        "args": ["date; sleep 90"],
+                        "command": ["sh", "-c"],
+                        "image": "alpine:3.6",
+                        "name": "",
+                        "resources": {},
+                      },
+                    "inputs": {},
+                    "metadata": {},
+                    "name": "whalesay",
+                    "outputs": {},
+                  },
+                ],
+            },
+          "status": { "finishedAt": None, "startedAt": None },
+        },
+      "oldObject": None,
+      "dryRun": False,
+      "options": { "kind": "CreateOptions", "apiVersion": "meta.k8s.io/v1" },
+    },
+}
