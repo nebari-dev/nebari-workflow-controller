@@ -23,7 +23,7 @@ def test_validate(request_file, allowed, mocked_get_keycloak_user):
     with open(request_file) as f:
         request = yaml.load(f, Loader=yaml.FullLoader)
     response = validate(request)
-    print(response)
+
     assert response["response"]["allowed"] == allowed
     if not allowed:
         assert response["response"]["status"]["message"]
@@ -45,7 +45,9 @@ def test_mutate_template_doesnt_error(request_templates, jupyterlab_pod_spec):
 @pytest.mark.parametrize(
     "request_file", ["tests/test_data/requests/valid/jupyterflow-override-example.yaml"]
 )
-def test_mutate2(request_file, mocked_get_keycloak_user_info, mocked_get_user_pod_spec):
+def test_mutate_check_content(
+    request_file, mocked_get_keycloak_user, mocked_get_user_pod_spec
+):
     with open(request_file) as f:
         request = yaml.load(f, Loader=yaml.FullLoader)
     response = mutate(request)
@@ -77,3 +79,13 @@ def test_mutate2(request_file, mocked_get_keycloak_user_info, mocked_get_user_po
         },
     ]:
         assert volume in mutated_spec["spec"]["templates"][0]["volumes"]
+
+    assert mutated_spec["spec"]["templates"][0]["container"]["nodeSelector"] == {
+        "mylabel": "myValue",
+        "cloud.google.com/gke-nodepool": "user",
+    }
+
+    assert mutated_spec["spec"]["templates"][0]["container"]["resources"] == {
+        "requests": {"cpu": "3000m", "memory": "5368709120"},
+        "limits": {"cpu": "2", "memory": "8589934592"},
+    }

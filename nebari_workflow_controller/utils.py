@@ -183,6 +183,15 @@ def get_user_pod_spec(keycloak_user):
     return jupyter_pod_spec
 
 
+def get_spec_to_container_portions(user_pod_spec, api):
+    return [
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
+            "nodeSelector",
+        )
+    ]
+
+
 def get_spec_keep_portions(user_pod_spec, api):
     return [
         (
@@ -209,6 +218,25 @@ def get_spec_keep_portions(user_pod_spec, api):
             "volumes",
         ),
     ]
+
+
+def recursive_dict_merge(greater_dict, lesser_dict, path=None):
+    "merges lesser_dict into greater_dict and assigns to greater_dict, greater_dict value takes precedence in case of conflict between greater and lesser dict"
+    if path is None:
+        path = []
+    for key in lesser_dict:
+        if key in greater_dict:
+            if isinstance(greater_dict[key], dict) and isinstance(
+                lesser_dict[key], dict
+            ):
+                recursive_dict_merge(
+                    greater_dict[key], lesser_dict[key], path + [str(key)]
+                )
+            else:
+                pass
+        else:
+            greater_dict[key] = lesser_dict[key]
+    return greater_dict
 
 
 def get_container_keep_portions(user_pod_spec, api):
@@ -246,17 +274,19 @@ def get_container_keep_portions(user_pod_spec, api):
     ]
 
 
-def mutate_template(container_keep_portions, spec_keep_portions, template):
+def mutate_template(
+    container_keep_portions,
+    spec_keep_portions,
+    template,
+    spec_to_container_portions=None,
+):
     for value, key in container_keep_portions:
         if "container" not in template:
             continue
 
         if isinstance(value, dict):
             if key in template["container"]:
-                template["container"][key] = {
-                    **template["container"][key],
-                    **value,
-                }
+                recursive_dict_merge(template["container"][key], value)
             else:
                 template["container"][key] = value
         elif isinstance(value, list):
@@ -270,7 +300,7 @@ def mutate_template(container_keep_portions, spec_keep_portions, template):
     for value, key in spec_keep_portions:
         if isinstance(value, dict):
             if key in template:
-                template[key] = {**template[key], **value}
+                recursive_dict_merge(template[key], value)
             else:
                 template[key] = value
         elif isinstance(value, list):
@@ -280,3 +310,18 @@ def mutate_template(container_keep_portions, spec_keep_portions, template):
                 template[key] = value
         else:
             template[key] = value
+
+    if spec_to_container_portions:
+        for value, key in spec_to_container_portions:
+            if isinstance(value, dict):
+                if key in template["container"]:
+                    recursive_dict_merge(template["container"][key], value)
+                else:
+                    template["container"][key] = value
+            elif isinstance(value, list):
+                if key in template["container"]:
+                    template["container"][key].append(value)
+                else:
+                    template["container"][key] = value
+            else:
+                template["container"][key] = value

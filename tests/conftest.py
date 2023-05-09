@@ -7,7 +7,7 @@ import yaml
 
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
-os.environ["NAMESPACE"] = "default"
+os.environ["NAMESPACE"] = "dev"
 
 
 def _valid_request_paths():

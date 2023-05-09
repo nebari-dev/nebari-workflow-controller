@@ -19,6 +19,7 @@ from nebari_workflow_controller.utils import (
     get_container_keep_portions,
     get_keycloak_user,
     get_spec_keep_portions,
+    get_spec_to_container_portions,
     get_user_pod_spec,
     mutate_template,
     process_unhandled_exception,
@@ -119,7 +120,7 @@ mutate_label = "jupyterflow-override"
 
 @app.post("/mutate")
 def mutate(request=Body(...)):
-    logger.warn(f"Received request: \n\n{request}")
+    logger.debug(f"Received request: \n\n{request}")
     return_response = partial(
         base_return_response,
         apiVersion=request["apiVersion"],
@@ -143,6 +144,9 @@ def mutate(request=Body(...)):
 
             container_keep_portions = get_container_keep_portions(user_pod_spec, api)
             spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
+            spec_to_container_portions = get_spec_to_container_portions(
+                user_pod_spec, api
+            )
 
             if spec["kind"] == "Workflow":
                 templates = modified_spec["spec"]["templates"]
@@ -152,7 +156,12 @@ def mutate(request=Body(...)):
                 raise Exception("Only expecting Workflow or CronWorkflow")
 
             for template in templates:
-                mutate_template(container_keep_portions, spec_keep_portions, template)
+                mutate_template(
+                    container_keep_portions,
+                    spec_keep_portions,
+                    template,
+                    spec_to_container_portions,
+                )
 
             patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
             return return_response(
@@ -162,5 +171,7 @@ def mutate(request=Body(...)):
             )
         else:
             return return_response(True)
+    except NWFCUnsupportedException as e:
+        return return_response(False, message=str(e))
     except Exception as e:
         return process_unhandled_exception(e, return_response, logger)
