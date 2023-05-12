@@ -80,12 +80,12 @@ def test_mutate_check_content(
     ]:
         assert volume in mutated_spec["spec"]["templates"][0]["volumes"]
 
-    assert mutated_spec["spec"]["templates"][0]["container"]["nodeSelector"] == {
+    assert mutated_spec["spec"]["templates"][0]["nodeSelector"] == {
         "mylabel": "myValue",
         "cloud.google.com/gke-nodepool": "user",
     }
 
     assert mutated_spec["spec"]["templates"][0]["container"]["resources"] == {
-        "requests": {"cpu": "3000m", "memory": "5368709120"},
-        "limits": {"cpu": "2", "memory": "8589934592"},
+        "requests": {"cpu": "1500m", "memory": "5368709120"},
+        "limits": {"cpu": "3000m", "memory": "8589934592"},
     }

@@ -19,7 +19,6 @@ from nebari_workflow_controller.utils import (
     get_container_keep_portions,
     get_keycloak_user,
     get_spec_keep_portions,
-    get_spec_to_container_portions,
     get_user_pod_spec,
     mutate_template,
     process_unhandled_exception,
@@ -144,9 +143,6 @@ def mutate(request=Body(...)):
 
             container_keep_portions = get_container_keep_portions(user_pod_spec, api)
             spec_keep_portions = get_spec_keep_portions(user_pod_spec, api)
-            spec_to_container_portions = get_spec_to_container_portions(
-                user_pod_spec, api
-            )
 
             if spec["kind"] == "Workflow":
                 templates = modified_spec["spec"]["templates"]
@@ -160,7 +156,7 @@ def mutate(request=Body(...)):
                     container_keep_portions,
                     spec_keep_portions,
                     template,
-                    spec_to_container_portions,
+                    # spec_to_template_portions,
                 )
 
             patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)

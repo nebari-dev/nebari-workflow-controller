@@ -183,15 +183,6 @@ def get_user_pod_spec(keycloak_user):
     return jupyter_pod_spec
 
 
-def get_spec_to_container_portions(user_pod_spec, api):
-    return [
-        (
-            api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
-            "nodeSelector",
-        )
-    ]
-
-
 def get_spec_keep_portions(user_pod_spec, api):
     return [
         (
@@ -216,6 +207,10 @@ def get_spec_keep_portions(user_pod_spec, api):
                 if not v.name.startswith("kupe-api-access-")
             ],
             "volumes",
+        ),
+        (
+            api.sanitize_for_serialization(user_pod_spec.spec.node_selector),
+            "nodeSelector",
         ),
     ]
 
@@ -278,7 +273,6 @@ def mutate_template(
     container_keep_portions,
     spec_keep_portions,
     template,
-    spec_to_container_portions=None,
 ):
     for value, key in container_keep_portions:
         if "container" not in template:
@@ -310,18 +304,3 @@ def mutate_template(
                 template[key] = value
         else:
             template[key] = value
-
-    if spec_to_container_portions:
-        for value, key in spec_to_container_portions:
-            if isinstance(value, dict):
-                if key in template["container"]:
-                    recursive_dict_merge(template["container"][key], value)
-                else:
-                    template["container"][key] = value
-            elif isinstance(value, list):
-                if key in template["container"]:
-                    template["container"][key].append(value)
-                else:
-                    template["container"][key] = value
-            else:
-                template["container"][key] = value
