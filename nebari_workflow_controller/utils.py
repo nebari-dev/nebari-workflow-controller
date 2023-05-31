@@ -3,7 +3,8 @@ import logging
 import os
 import traceback
 
-from keycloak import KeycloakAdmin, KeycloakGetError
+from keycloak import KeycloakAdmin
+from keycloak.exceptions import KeycloakGetError
 from kubernetes import client, config
 
 from nebari_workflow_controller.exceptions import (
@@ -47,31 +48,19 @@ def sent_by_argo(workflow: dict):
     return None
 
 
-def valid_argo_roles(kcadm):
+def valid_argo_roles():
     # TODO: determine a more extensible way of generating a list of valid roles
-    prohibited_roles = ["argo_viewer"]
-
-    for client in kcadm.get_clients():
-        if client["clientId"] == ARGO_CLIENT_ID:
-            argo_client_uid = client["id"]
-
-    roles = kcadm.get_client_roles(client_id=argo_client_uid)
-
-    return [
-        role["name"].replace("_", "-")
-        for role in roles
-        if role["name"] not in prohibited_roles
-    ]
+    return ["argo-admin", "argo-developer"]
 
 
-def validate_service_account(kcadm, service_account: str) -> bool:
+def validate_service_account(service_account: str) -> bool:
     """
     Check if the service account creating the workflow is from an approved list of service accounts.
 
     service_account is in the format: "system-serviceaccount-<namespace>-<service account name>"
     """
 
-    valid_roles = valid_argo_roles(kcadm)
+    valid_roles = valid_argo_roles()
     ns = os.environ["NAMESPACE"]
     sa = service_account.split(f"-{ns}-")
 
@@ -127,14 +116,14 @@ def get_keycloak_uid_username(
         try:
             keycloak_username = kcadm.get_user(keycloak_uid)["username"]
             return keycloak_uid, keycloak_username
-        except KeycloakGetError as e:
+        except KeycloakGetError:
             logger.warning(
-                f"Keycloak user with UID {keycloak_uid} not found: {e}.\nChecking if workflow was created by system-serviceaccount..."
+                f"Keycloak user with UID `{keycloak_uid}` not found. Checking if workflow was created by system-serviceaccount..."
             )
             preferred_username = workflow["metadata"]["labels"][
                 "workflows.argoproj.io/creator-preferred-username"
             ]
-            if validate_service_account(kcadm, keycloak_uid):
+            if validate_service_account(keycloak_uid):
                 for user in kcadm.get_users():
                     if user["username"] == preferred_username:
                         return user["id"], preferred_username
