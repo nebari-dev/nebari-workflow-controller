@@ -3,7 +3,7 @@ import logging
 import os
 import traceback
 
-from keycloak import KeycloakAdmin
+from keycloak import KeycloakAdmin, KeycloakGetError
 from kubernetes import client, config
 
 from nebari_workflow_controller.exceptions import (
@@ -15,6 +15,8 @@ from nebari_workflow_controller.exceptions import (
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 logger = logging.getLogger(__name__)
+
+ARGO_CLIENT_ID = "argo-server-sso"
 
 
 def process_unhandled_exception(e, return_response, logger):
@@ -43,6 +45,40 @@ def sent_by_argo(workflow: dict):
                 return possible_label_added_by_argo
 
     return None
+
+
+def valid_argo_roles(kcadm):
+    # TODO: determine a more extensible way of generating a list of valid roles
+    prohibited_roles = ["argo_viewer"]
+
+    for client in kcadm.get_clients():
+        if client["clientId"] == ARGO_CLIENT_ID:
+            argo_client_uid = client["id"]
+
+    roles = kcadm.get_client_roles(client_id=argo_client_uid)
+
+    return [
+        role["name"].replace("_", "-")
+        for role in roles
+        if role["name"] not in prohibited_roles
+    ]
+
+
+def validate_service_account(kcadm, service_account: str) -> bool:
+    """
+    Check if the service account creating the workflow is from an approved list of service accounts.
+
+    service_account is in the format: "system-serviceaccount-<namespace>-<service account name>"
+    """
+
+    valid_roles = valid_argo_roles(kcadm)
+    ns = os.environ["NAMESPACE"]
+    sa = service_account.split(f"-{ns}-")
+
+    if len(sa) == 2 and sa[0] == "system-serviceaccount" and sa[1] in valid_roles:
+        return True
+
+    return False
 
 
 def get_keycloak_user(request):
@@ -88,8 +124,21 @@ def get_keycloak_uid_username(
 
     if label_added_by_argo == "workflows.argoproj.io/creator":
         keycloak_uid = workflow["metadata"]["labels"][label_added_by_argo]
-        keycloak_username = kcadm.get_user(keycloak_uid)["username"]
-        return keycloak_uid, keycloak_username
+        try:
+            keycloak_username = kcadm.get_user(keycloak_uid)["username"]
+            return keycloak_uid, keycloak_username
+        except KeycloakGetError as e:
+            logger.warning(
+                f"Keycloak user with UID {keycloak_uid} not found: {e}.\nChecking if workflow was created by system-serviceaccount..."
+            )
+            preferred_username = workflow["metadata"]["labels"][
+                "workflows.argoproj.io/creator-preferred-username"
+            ]
+            if validate_service_account(kcadm, keycloak_uid):
+                for user in kcadm.get_users():
+                    if user["username"] == preferred_username:
+                        return user["id"], preferred_username
+
     elif label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
         raise NWFCUnsupportedException(
             "Resubmitting workflows is not supported by Nebari Workflow Controller"
