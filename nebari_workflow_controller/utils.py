@@ -323,7 +323,7 @@ def mutate_template(
                 template["container"][key] = value
         elif isinstance(value, list):
             if key in template["container"]:
-                template["container"][key].append(value)
+                template["container"][key].extend(value)
             else:
                 template["container"][key] = value
         else:
@@ -337,7 +337,7 @@ def mutate_template(
                 template[key] = value
         elif isinstance(value, list):
             if key in template:
-                template[key].append(value)
+                template[key].extend(value)
             else:
                 template[key] = value
         else:
