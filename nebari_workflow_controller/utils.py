@@ -312,22 +312,24 @@ def mutate_template(
     spec_keep_portions,
     template,
 ):
-    for value, key in container_keep_portions:
-        if "container" not in template:
-            continue
+    target = "container" if "container" in template else "script" if "script" in template else None
 
+    if target is None:
+        return
+
+    for value, key in container_keep_portions:
         if isinstance(value, dict):
-            if key in template["container"]:
-                recursive_dict_merge(template["container"][key], value)
+            if key in template[target]:
+                recursive_dict_merge(template[target][key], value)
             else:
-                template["container"][key] = value
+                template[target][key] = value
         elif isinstance(value, list):
-            if key in template["container"]:
-                template["container"][key].extend(value)
+            if key in template[target]:
+                template[target][key].extend(value)
             else:
-                template["container"][key] = value
+                template[target][key] = value
         else:
-            template["container"][key] = value
+            template[target][key] = value
 
     for value, key in spec_keep_portions:
         if isinstance(value, dict):
