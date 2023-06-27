@@ -5,5 +5,8 @@ A kubernetes admission controller to enable volumeMount permisions on Argo Workf
 - `pip install .`
 - `python -m nebari_workflow_controller`
 
+# Known Limitations
+Resubmitting workflows is not supported by Nebari Workflow Controller.
+
 # Developing on this project
 Run `pip install -e .[dev]`
