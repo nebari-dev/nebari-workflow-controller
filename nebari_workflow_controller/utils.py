@@ -1,6 +1,6 @@
 import base64
-import logging
 import json
+import logging
 import os
 import re
 import traceback
@@ -145,6 +145,10 @@ def get_keycloak_uid_username(
                         return user["id"], preferred_username
                 raise NWFCUnsupportedException(
                     "Workflow was created by system-serviceaccount, but user not found in Keycloak. Check that the `PREFERRED_USERNAME` is correctly set in your JupyterLab server."
+                )
+            else:
+                raise NWFCUnsupportedException(
+                    f"Workflow was created by system-serviceaccount submitted by a user without either of the following roles: {valid_argo_roles()}.  Please contact your administrator if you need access."
                 )
 
     elif label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
