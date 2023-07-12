@@ -1,5 +1,6 @@
 import base64
 import logging
+import json
 import os
 import re
 import traceback
@@ -19,7 +20,7 @@ from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 logger = logging.getLogger(__name__)
 
 ARGO_CLIENT_ID = "argo-server-sso"
-# mounted to deployment as a configmap
+# mounted to nebari-workflow-controller deployment as a configmap
 VALID_ARGO_ROLES_CONFIGMAP = "/etc/config/valid-argo-roles"
 
 
@@ -51,9 +52,9 @@ def sent_by_argo(workflow: dict):
     return None
 
 
-def valid_argo_roles():
+def valid_argo_roles() -> list:
     with open(VALID_ARGO_ROLES_CONFIGMAP, "r") as f:
-        return f.read().splitlines()
+        return json.loads(f.read())
 
 
 def validate_service_account(service_account: str) -> bool:
@@ -73,18 +74,18 @@ def validate_service_account(service_account: str) -> bool:
     return False
 
 
-def sanitize_label(s: str):
+def sanitize_label(s: str) -> str:
     s = s.lower()
     pattern = r"[^A-Za-z0-9]"
     return re.sub(pattern, lambda x: "-" + hex(ord(x.group()))[2:], s)
 
 
-def desanitize_label(s: str):
+def desanitize_label(s: str) -> str:
     pattern = r"-([A-Za-z0-9][A-Za-z0-9])"
     return re.sub(pattern, lambda x: chr(int(x.group(1), 16)), s)
 
 
-def get_keycloak_user(request):
+def get_keycloak_user(request) -> KeycloakUser:
     kcadm = KeycloakAdmin(
         server_url=os.environ["KEYCLOAK_URL"],
         username=os.environ["KEYCLOAK_USERNAME"],
