@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 ARGO_CLIENT_ID = "argo-server-sso"
 # mounted to deployment as a configmap
-VALID_ARGO_ROLES_CONFIGMAP = "/etc/config/valid_argo_roles"
+VALID_ARGO_ROLES_CONFIGMAP = "/etc/config/valid-argo-roles"
 
 
 def process_unhandled_exception(e, return_response, logger):
