@@ -19,6 +19,8 @@ from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 logger = logging.getLogger(__name__)
 
 ARGO_CLIENT_ID = "argo-server-sso"
+# mounted to deployment as a configmap
+VALID_ARGO_ROLES_CONFIGMAP = "/etc/config/valid_argo_roles"
 
 
 def process_unhandled_exception(e, return_response, logger):
@@ -50,8 +52,8 @@ def sent_by_argo(workflow: dict):
 
 
 def valid_argo_roles():
-    # TODO: determine a more extensible way of generating a list of valid roles
-    return ["argo-admin", "argo-developer"]
+    with open(VALID_ARGO_ROLES_CONFIGMAP, "r") as f:
+        return f.read().splitlines()
 
 
 def validate_service_account(service_account: str) -> bool:
