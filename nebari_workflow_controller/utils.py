@@ -1,9 +1,11 @@
 import base64
 import logging
 import os
+import re
 import traceback
 
 from keycloak import KeycloakAdmin
+from keycloak.exceptions import KeycloakGetError
 from kubernetes import client, config
 
 from nebari_workflow_controller.exceptions import (
@@ -15,6 +17,8 @@ from nebari_workflow_controller.exceptions import (
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
 logger = logging.getLogger(__name__)
+
+ARGO_CLIENT_ID = "argo-server-sso"
 
 
 def process_unhandled_exception(e, return_response, logger):
@@ -43,6 +47,39 @@ def sent_by_argo(workflow: dict):
                 return possible_label_added_by_argo
 
     return None
+
+
+def valid_argo_roles():
+    # TODO: determine a more extensible way of generating a list of valid roles
+    return ["argo-admin", "argo-developer"]
+
+
+def validate_service_account(service_account: str) -> bool:
+    """
+    Check if the service account creating the workflow is from an approved list of service accounts.
+
+    service_account is in the format: "system-serviceaccount-<namespace>-<service account name>"
+    """
+
+    valid_roles = valid_argo_roles()
+    ns = os.environ["NAMESPACE"]
+    sa = service_account.split(f"-{ns}-")
+
+    if len(sa) == 2 and sa[0] == "system-serviceaccount" and sa[1] in valid_roles:
+        return True
+
+    return False
+
+
+def sanitize_label(s: str):
+    s = s.lower()
+    pattern = r"[^A-Za-z0-9]"
+    return re.sub(pattern, lambda x: "-" + hex(ord(x.group()))[2:], s)
+
+
+def desanitize_label(s: str):
+    pattern = r"-([A-Za-z0-9][A-Za-z0-9])"
+    return re.sub(pattern, lambda x: chr(int(x.group(1), 16)), s)
 
 
 def get_keycloak_user(request):
@@ -88,8 +125,25 @@ def get_keycloak_uid_username(
 
     if label_added_by_argo == "workflows.argoproj.io/creator":
         keycloak_uid = workflow["metadata"]["labels"][label_added_by_argo]
-        keycloak_username = kcadm.get_user(keycloak_uid)["username"]
-        return keycloak_uid, keycloak_username
+        try:
+            keycloak_username = kcadm.get_user(keycloak_uid)["username"]
+            return keycloak_uid, keycloak_username
+        except KeycloakGetError:
+            logger.warning(
+                f"Keycloak user with UID `{keycloak_uid}` not found. Checking if workflow was created by system-serviceaccount..."
+            )
+            preferred_username = workflow["metadata"]["labels"][
+                "workflows.argoproj.io/creator-preferred-username"
+            ]
+            preferred_username = desanitize_label(preferred_username)
+            if validate_service_account(keycloak_uid):
+                for user in kcadm.get_users():
+                    if user["username"] == preferred_username:
+                        return user["id"], preferred_username
+                raise NWFCUnsupportedException(
+                    "Workflow was created by system-serviceaccount, but user not found in Keycloak. Check that the `PREFERRED_USERNAME` is correctly set in your JupyterLab server."
+                )
+
     elif label_added_by_argo == "workflows.argoproj.io/resubmitted-from-workflow":
         raise NWFCUnsupportedException(
             "Resubmitting workflows is not supported by Nebari Workflow Controller"
@@ -158,13 +212,14 @@ def find_invalid_volume_mount(
                         return denyReason
 
 
-def get_user_pod_spec(keycloak_user):
+def get_user_pod_spec(keycloak_user: KeycloakUser):
     config.incluster_config.load_incluster_config()
     k8s_client = client.CoreV1Api()
 
+    sanitized_username = sanitize_label(keycloak_user.username)
     jupyter_pod_list = k8s_client.list_namespaced_pod(
         os.environ["NAMESPACE"],
-        label_selector=f"hub.jupyter.org/username={keycloak_user.username}",
+        label_selector=f"hub.jupyter.org/username={sanitized_username}",
     ).items
 
     if len(jupyter_pod_list) > 1:
@@ -274,22 +329,30 @@ def mutate_template(
     spec_keep_portions,
     template,
 ):
-    for value, key in container_keep_portions:
-        if "container" not in template:
-            continue
+    target = (
+        "container"
+        if "container" in template
+        else "script"
+        if "script" in template
+        else None
+    )
 
+    if target is None:
+        return
+
+    for value, key in container_keep_portions:
         if isinstance(value, dict):
-            if key in template["container"]:
-                recursive_dict_merge(template["container"][key], value)
+            if key in template[target]:
+                recursive_dict_merge(template[target][key], value)
             else:
-                template["container"][key] = value
+                template[target][key] = value
         elif isinstance(value, list):
-            if key in template["container"]:
-                template["container"][key].append(value)
+            if key in template[target]:
+                template[target][key].extend(value)
             else:
-                template["container"][key] = value
+                template[target][key] = value
         else:
-            template["container"][key] = value
+            template[target][key] = value
 
     for value, key in spec_keep_portions:
         if isinstance(value, dict):
@@ -299,7 +362,7 @@ def mutate_template(
                 template[key] = value
         elif isinstance(value, list):
             if key in template:
-                template[key].append(value)
+                template[key].extend(value)
             else:
                 template[key] = value
         else:
