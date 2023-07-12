@@ -74,7 +74,7 @@ def validate_service_account(service_account: str) -> bool:
 def sanitize_label(s: str):
     s = s.lower()
     pattern = r"[^A-Za-z0-9]"
-    return re.sub(pattern, lambda x: '-' + hex(ord(x.group()))[2:], s)
+    return re.sub(pattern, lambda x: "-" + hex(ord(x.group()))[2:], s)
 
 
 def desanitize_label(s: str):
