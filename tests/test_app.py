@@ -11,7 +11,13 @@ from nebari_workflow_controller.utils import (
     get_spec_keep_portions,
     mutate_template,
 )
-from tests.conftest import _invalid_request_paths, _valid_request_paths
+
+from .conftest import (
+    _invalid_request_paths,
+    _invalid_service_account_request_paths,
+    _valid_request_paths,
+    _valid_service_account_request_paths,
+)
 
 
 @pytest.mark.parametrize(
@@ -20,6 +26,24 @@ from tests.conftest import _invalid_request_paths, _valid_request_paths
     + [(str(p), False) for p in _invalid_request_paths()],
 )
 def test_validate(request_file, allowed, mocked_get_keycloak_user):
+    with open(request_file) as f:
+        request = yaml.load(f, Loader=yaml.FullLoader)
+    response = validate(request)
+
+    assert response["response"]["allowed"] == allowed
+    if not allowed:
+        assert response["response"]["status"]["message"]
+
+
+@pytest.mark.parametrize(
+    "request_file,allowed",
+    [(str(p), True) for p in _valid_service_account_request_paths()]
+    + [(str(p), False) for p in _invalid_service_account_request_paths()],
+)
+def test_validate_with_service_account(request_file, allowed, mock_special_case):
+    # The general case is where the user is directly validated against Keycloak.
+    # This is the special case, where the user is validated against Keycloak via a service account.
+
     with open(request_file) as f:
         request = yaml.load(f, Loader=yaml.FullLoader)
     response = validate(request)

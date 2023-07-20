@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from keycloak.exceptions import KeycloakGetError
 
 from nebari_workflow_controller.models import KeycloakGroup, KeycloakUser
 
@@ -39,6 +40,28 @@ def _all_request_paths():
 @pytest.fixture(scope="session")
 def all_request_paths(valid_request_paths, invalid_request_paths):
     return valid_request_paths + invalid_request_paths
+
+
+def _valid_service_account_request_paths():
+    return sorted(
+        [
+            str(p)
+            for p in Path("./tests/test_data/requests/valid-service-account").glob(
+                "*.yaml"
+            )
+        ]
+    )
+
+
+def _invalid_service_account_request_paths():
+    return sorted(
+        [
+            str(p)
+            for p in Path("./tests/test_data/requests/invalid-service-account").glob(
+                "*.yaml"
+            )
+        ]
+    )
 
 
 def load_request(request_path):
@@ -101,4 +124,58 @@ def mocked_get_user_pod_spec(mocker):
     mocker.patch(
         "nebari_workflow_controller.app.get_user_pod_spec",
         return_value=jupyterlab_pod_spec,
+    )
+
+
+class MockedKeycloakAdmin:
+    def get_user(self, *args, **kwargs):
+        raise KeycloakGetError("mocked error")
+
+    def get_users(self, *args, **kwargs):
+        return [
+            {
+                "id": "a1234567-abcd-89ef-0123-456789abcdef",
+                "username": "valid-user@mail.com",
+                "email": "valid-user@mail.com",
+                "firstName": "Valid",
+                "lastName": "User",
+                "enabled": True,
+                "groups": ["admin", "users"],
+            },
+        ]
+
+    def get_user_groups(self, *args, **kwargs):
+        return [
+            {
+                "id": "group123-id",
+                "name": "admin",
+                "path": "/admin",
+                "attributes": {},
+            },
+            {
+                "id": "group456-id",
+                "name": "users",
+                "path": "/users",
+                "attributes": {},
+            },
+        ]
+
+
+VALID_ARGO_ROLES = ["argo-admin", "argo-developer"]
+
+
+@pytest.fixture(scope="function")
+def mock_special_case(mocker):
+    mocker.patch(
+        "nebari_workflow_controller.utils.create_keycloak_admin",
+        return_value=MockedKeycloakAdmin(),
+    )
+    mocker.patch("nebari_workflow_controller.utils.config", return_value=None)
+    mocker.patch(
+        "nebari_workflow_controller.utils.sent_by_argo",
+        return_value="workflows.argoproj.io/creator",
+    )
+    mocker.patch(
+        "nebari_workflow_controller.utils.valid_argo_roles",
+        return_value=VALID_ARGO_ROLES,
     )
