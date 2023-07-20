@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 ARGO_CLIENT_ID = "argo-server-sso"
 # mounted to nebari-workflow-controller deployment as a configmap
-VALID_ARGO_ROLES_CONFIGMAP = "/etc/config/valid-argo-roles"
+VALID_ARGO_ROLES_CONFIGMAP = "/etc/argo/valid-argo-roles"
 
 
 def process_unhandled_exception(e, return_response, logger):
@@ -85,8 +85,8 @@ def desanitize_label(s: str) -> str:
     return re.sub(pattern, lambda x: chr(int(x.group(1), 16)), s)
 
 
-def get_keycloak_user(request) -> KeycloakUser:
-    kcadm = KeycloakAdmin(
+def create_keycloak_admin() -> KeycloakAdmin:
+    return KeycloakAdmin(
         server_url=os.environ["KEYCLOAK_URL"],
         username=os.environ["KEYCLOAK_USERNAME"],
         password=os.environ["KEYCLOAK_PASSWORD"],
@@ -94,6 +94,10 @@ def get_keycloak_user(request) -> KeycloakUser:
         realm_name="nebari",
         client_id="admin-cli",
     )
+
+
+def get_keycloak_user(request) -> KeycloakUser:
+    kcadm = create_keycloak_admin()
 
     config.incluster_config.load_incluster_config()
 
@@ -111,7 +115,7 @@ def get_keycloak_user(request) -> KeycloakUser:
 
 
 def get_keycloak_uid_username(
-    kcadm,
+    kcadm: KeycloakAdmin,
     workflow: dict,
     k8s_client: client.ApiClient,
 ) -> KeycloakUser:
