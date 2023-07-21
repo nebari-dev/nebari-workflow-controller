@@ -1,8 +1,13 @@
 # Nebari Workflow Controller
-A kubernetes admission controller to enable volumeMount permissions on Argo Workflows on Nebari and provide a convenience method for deploying jupyterlab-like workflows for users.
+
+![PyPI](https://img.shields.io/pypi/v/nebari-workflow-controller)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/nebari-workflow-controller)
+
+
+A [kubernetes admission controller](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/) to enable volumeMount permissions on Argo Workflows on Nebari and provide a convenience method for deploying jupyterlab-like workflows for users.
 
 # Run project
-- `pip install .`
+- `pip install nebari-workflow-controller`
 - `python -m nebari_workflow_controller`
 
 # Known Limitations
